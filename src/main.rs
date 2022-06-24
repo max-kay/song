@@ -1,11 +1,16 @@
+use std::path::Path;
+
+use audio_effects::Effect;
+use automation::ValAndCh;
+
+pub mod audio_effects;
+pub mod automation;
 pub mod constants;
 pub mod io;
-pub mod synth;
-pub mod util;
-pub mod audio_effects;
-pub mod song;
 pub mod midi;
-
+pub mod song;
+pub mod synth;
+pub mod utils;
 
 fn main() {
     let name = String::from("first");
@@ -14,5 +19,22 @@ fn main() {
     let oscillators = vec![oscillator];
     let synth = synth::Synthesizer::new(name, envelope, oscillators);
 
-    synth.save_test_chord();
+    let automation = automation::AutomationManager::new();
+
+    let delay = audio_effects::Delay {
+        time_delta: ValAndCh {
+            value: 0.5,
+            connection: None,
+        },
+        gain: ValAndCh {
+            value: 0.8,
+            connection: None,
+        },
+    };
+
+    let mut sound = synth.play_test_chord();
+    delay.apply(&mut sound, &automation);
+
+    let path = Path::new("out/delay_test.wav");
+    io::easy_save(sound, path);
 }

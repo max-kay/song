@@ -2,7 +2,7 @@ use crate::constants::SAMPLE_RATE;
 use crate::io;
 use crate::midi::{Pitch, Velocity};
 use crate::song;
-use crate::util::{add_same_len, seconds_to_samples};
+use crate::utils::{add_same_len, seconds_to_samples};
 use std::f64::consts::{PI, TAU};
 use std::path::Path;
 
@@ -230,9 +230,18 @@ impl Synthesizer {
 
     pub fn play_test_chord(&self) -> Vec<f64> {
         let mut out = self.play_freq(300.0, 2.0, Velocity::new(80).unwrap());
-        add_same_len(&mut out, self.play_freq(375.0, 2.0, Velocity::new(80).unwrap()));
-        add_same_len(&mut out, self.play_freq(450.0, 2.0, Velocity::new(80).unwrap()));
-        add_same_len(&mut out, self.play_freq(600.0, 2.0, Velocity::new(80).unwrap()));
+        add_same_len(
+            &mut out,
+            self.play_freq(375.0, 2.0, Velocity::new(80).unwrap()),
+        );
+        add_same_len(
+            &mut out,
+            self.play_freq(450.0, 2.0, Velocity::new(80).unwrap()),
+        );
+        add_same_len(
+            &mut out,
+            self.play_freq(600.0, 2.0, Velocity::new(80).unwrap()),
+        );
         out
     }
 

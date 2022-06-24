@@ -1,5 +1,5 @@
 use crate::constants::SAMPLE_RATE;
-use crate::util;
+use crate::utils;
 use std::fs::File;
 use std::path::Path;
 use wav::{self, WAV_FORMAT_PCM};
@@ -17,6 +17,6 @@ pub fn save_m_i16_wav(track: Vec<f64>, path: &Path) -> std::io::Result<()> {
 }
 
 pub fn easy_save(track: Vec<f64>, path: &Path) {
-    let track = util::normalize(&track);
+    let track = utils::normalize(&track);
     save_m_i16_wav(track, path).expect("Error in easy_save")
 }

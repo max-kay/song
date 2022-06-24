@@ -14,7 +14,7 @@ impl Velocity {
     pub fn get(&self) -> u8 {
         self.value
     }
-    
+
     pub fn new_unchecked(value: u8) -> Self {
         Self { value }
     }
@@ -36,12 +36,12 @@ impl Pitch {
     pub fn get(&self) -> u8 {
         self.value
     }
-    
+
     pub fn new_unchecked(value: u8) -> Self {
         Self { value }
     }
 
-    pub fn get_freq(&self)-> f64{
+    pub fn get_freq(&self) -> f64 {
         440.0 * 2.0_f64.powf((self.value as f64 - 69.0) / 12.0)
     }
 }
@@ -65,9 +65,9 @@ impl Pitch {
 // }
 
 #[derive(Clone, Copy)]
-pub struct Note{
+pub struct Note {
     pub pitch: Pitch,
     pub onset: f64,
-    pub duration: f64, 
+    pub duration: f64,
     pub velocity: Velocity,
 }
