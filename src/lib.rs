@@ -1,0 +1,11 @@
+pub mod effects;
+pub mod auto;
+pub mod consts;
+pub mod io;
+pub mod midi;
+pub mod song;
+pub mod synth;
+pub mod utils;
+pub mod oscs;
+pub mod time;
+pub mod envelope;

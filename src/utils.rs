@@ -1,6 +1,6 @@
 use std::iter::zip;
 
-use crate::constants::SAMPLE_RATE;
+use crate::consts::SAMPLE_RATE;
 
 pub fn normalize(track: &Vec<f64>) -> Vec<f64> {
     let norm =

@@ -1,246 +1,153 @@
-use crate::constants::SAMPLE_RATE;
-use crate::io;
-use crate::midi::{Pitch, Velocity};
-use crate::song;
-use crate::utils::{add_same_len, seconds_to_samples};
-use std::f64::consts::{PI, TAU};
+use crate::auto::{AutomationManager, Lfo, PointDefined, TimeFunction, ValAndCh, ValOrVec};
+use crate::envelope::Envelope;
+use crate::midi;
+use crate::song::{self, Instrument};
+use crate::time::{Duration, TimeStamp};
+use crate::utils::add_same_len;
+use crate::{io, oscs};
+use std::collections::HashMap;
 use std::path::Path;
+use std::rc::Rc;
 
-pub enum Envelope {
-    Decay {
-        decay: usize,
-    },
-    Ad {
-        attack: usize,
-        decay: usize,
-    },
-    Adsr {
-        attack: usize,
-        decay: usize,
-        sustain: f64,
-        release: usize,
-    },
-    AdsrDecayed {
-        attack: usize,
-        decay: usize,
-        sustain: f64,
-        sus_decay: f64,
-        release: usize,
-    },
+const LFO1: u8 = 0;
+const LFO2: u8 = 1;
+const PITCHBEND: u8 = 2;
+const MOD_WHEEL: u8 = 3;
+const HARD_CODED_CHANNELS: [u8; 4] = [LFO1, LFO2, PITCHBEND, MOD_WHEEL];
+
+pub struct LocalAutomation {
+    channels: HashMap<u8, Box<dyn TimeFunction>>,
+    main_envelope: Envelope,
+    alt_envelope: Envelope,
 }
 
-impl Envelope {
-    pub fn play(&self, sus_samples: usize, velocity: Velocity) -> Vec<f64> {
-        // velocity here?
-        let out = match self {
-            Self::Decay { decay } => {
-                let mut out = Vec::with_capacity(*decay);
-                for i in 0..*decay {
-                    out.push(1.0 - (i as f64) / (*decay as f64))
-                }
-                out
-            }
-            Self::Ad { attack, decay } => {
-                let mut out = Vec::with_capacity(*attack + *decay);
-                for i in 0..*attack {
-                    out.push((i as f64) / (*attack as f64))
-                }
-                for i in 0..*decay {
-                    out.push(1.0 - (i as f64) / (*decay as f64))
-                }
-                out
-            }
-            Self::Adsr {
-                attack,
-                decay,
-                sustain,
-                release,
-            } => {
-                let mut out = Vec::with_capacity(sus_samples + *release);
-                for i in 0..*attack {
-                    out.push((i as f64) / (*attack as f64))
-                }
-                for i in 0..*decay {
-                    out.push((1.0 - (i as f64) / (*decay as f64)) * (1.0 - sustain) + sustain)
-                }
-                if (attack + decay) < sus_samples {
-                    let mut sus = vec![*sustain; sus_samples - attack - decay];
-                    out.append(&mut sus);
-                }
-                for i in 0..*release {
-                    out.push((1.0 - (i as f64) / (*release as f64)) * sustain)
-                }
-                out
-            }
-            Self::AdsrDecayed {
-                attack,
-                decay,
-                sustain,
-                sus_decay,
-                release,
-            } => {
-                let mut out = Vec::with_capacity(sus_samples + *release);
-                for i in 0..*attack {
-                    out.push((i as f64) / (*attack as f64))
-                }
-                for i in 0..*decay {
-                    out.push((1.0 - (i as f64) / (*decay as f64)) * (1.0 - sustain) + sustain)
-                }
-                if (attack + decay) < sus_samples {
-                    for i in 0..sus_samples {
-                        out.push(sustain * (sus_decay * (i as f64) / (SAMPLE_RATE as f64)));
-                    }
-                }
-                let last_sustain = *out.last().expect("error while calculating envelope");
-                for i in 0..*release {
-                    out.push((1.0 - (i as f64) / (*release as f64)) * last_sustain)
-                }
-                out
-            }
-        };
-        out.into_iter()
-            .map(|x| x * (velocity.get() as f64) / 127.0)
-            .collect()
-    }
-
-    pub fn new_decay(decay: f64) -> Self {
-        Self::Decay {
-            decay: seconds_to_samples(decay),
+impl LocalAutomation {
+    fn empty() -> Self {
+        let mut channels = HashMap::<u8, Box<dyn TimeFunction>>::new();
+        channels.insert(LFO1, Box::new(Lfo::default_lfo())); // lfo1
+        channels.insert(LFO2, Box::new(Lfo::default_lfo())); // lfo2
+        channels.insert(PITCHBEND, Box::new(PointDefined::one_point(0.5))); // pitchbend
+        channels.insert(MOD_WHEEL, Box::new(PointDefined::one_point(0.5))); // modulation_wheel
+        Self {
+            channels,
+            main_envelope: Envelope::default(),
+            alt_envelope: Envelope::default(),
         }
     }
 
-    pub fn new_ad(attack: f64, decay: f64) -> Self {
-        Self::Ad {
-            attack: seconds_to_samples(attack),
-            decay: seconds_to_samples(decay),
+    pub fn get_main_envelope(&self, sus_samples: usize) -> Vec<f64> {
+        self.main_envelope.get_envelope(sus_samples)
+    }
+
+    pub fn get_pitch_vec(&self, onset: TimeStamp, samples: usize) -> Vec<f64> {
+        self.channels
+            .get(&PITCHBEND)
+            .expect("Error while getting pitchbendvec")
+            .get_vec(onset, samples)
+    }
+
+    pub fn get_channel(&self, channel: u8) -> Option<&dyn TimeFunction> {
+        match self.channels.get(&channel) {
+            Some(timefunction) => Some(&**timefunction),
+            None => None,
         }
     }
 
-    pub fn new_adsr(attack: f64, decay: f64, sustain: f64, release: f64) -> Self {
-        Self::Adsr {
-            attack: seconds_to_samples(attack),
-            decay: seconds_to_samples(decay),
-            sustain,
-            release: seconds_to_samples(release),
-        }
-    }
-
-    pub fn new_adsr_decayed(
-        attack: f64,
-        decay: f64,
-        sustain: f64,
-        sus_decay: f64,
-        release: f64,
-    ) -> Self {
-        Self::AdsrDecayed {
-            attack: seconds_to_samples(attack),
-            decay: seconds_to_samples(decay),
-            sustain,
-            sus_decay,
-            release: seconds_to_samples(release),
-        }
+    pub fn set_channel(&mut self, timefunction: Box<dyn TimeFunction>, channel: u8) {
+        assert!(!HARD_CODED_CHANNELS.contains(&channel), "channel 0 to 3 are used as defaults for lfo1, lfo2, pitchbend, modulation_wheel in that order");
+        self.channels.insert(channel, timefunction);
     }
 }
 
-// impl Sustain {
-//     pub fn play(&self, samples: usize) -> Vec<f64> {
-//         match self {
-//             Self::Hold(val) => vec![*val; samples],
-//             Self::Decay(val, decay) => {
-//                 let mut out = Vec::with_capacity(samples);
-//                 for i in 0..samples {
-//                     out.push(val * (decay * (i as f64) / (SAMPLE_RATE as f64)));
-//                 }
-//                 out
-//             }
-//         }
-//     }
-// }
-pub enum Oscillator {
-    Sine(f64),
-    ModSquare(f64, f64),
-    ModSaw(f64, f64),
-}
-
-impl Oscillator {
-    pub fn play_freq(&self, freq: f64, samples: usize) -> Vec<f64> {
-        let ang_vel = TAU * freq;
-        let mut out = Vec::with_capacity(samples);
-        match self {
-            Self::Sine(vol) => {
-                let scale = ang_vel / (SAMPLE_RATE as f64);
-                for i in 0..samples {
-                    out.push((scale * (i as f64)).sin() * vol)
-                }
-                out
-            }
-            Self::ModSquare(vol, modulation) => {
-                for i in 0..samples {
-                    let phase = (i as f64) * ang_vel / (SAMPLE_RATE as f64) % TAU;
-                    if phase < *modulation * TAU {
-                        out.push(*vol)
-                    } else {
-                        out.push(-vol)
-                    }
-                }
-                out
-            }
-            Self::ModSaw(vol, modulation) => {
-                for i in 0..samples {
-                    let phase = (i as f64) * ang_vel / (SAMPLE_RATE as f64) % TAU;
-                    if phase < *modulation * TAU {
-                        out.push((phase / modulation / PI - 1.0) * vol)
-                    } else {
-                        out.push(
-                            ((phase - (modulation + 1.0) * PI) / (modulation - 1.0) / PI) * vol,
-                        )
-                    }
-                }
-                out
-            }
-        }
-    }
+pub struct Connections {
+    connections: Vec<ValAndCh>,
 }
 
 pub struct Synthesizer {
     name: String,
-    envelope: Envelope,
-    oscillators: Vec<Oscillator>,
+    oscillators: Vec<Box<dyn oscs::Oscillator>>,
+    local_automation: LocalAutomation,
+    global_automation: Rc<AutomationManager>,
+    connections: Connections,
+    pitch_wheel_range: f64, // in cents
 }
 
 impl Synthesizer {
-    pub fn new(name: String, envelope: Envelope, oscillators: Vec<Oscillator>) -> Self {
+    pub fn new(
+        name: String,
+        oscillators: Vec<Box<dyn oscs::Oscillator>>,
+        local_automation: LocalAutomation,
+        global_automation: Rc<AutomationManager>,
+        connections: Connections,
+        pitch_wheel_range: f64,
+    ) -> Self {
         Self {
             name,
-            envelope,
             oscillators,
+            local_automation,
+            global_automation,
+            connections,
+            pitch_wheel_range,
         }
     }
 
-    pub fn play_freq(&self, freq: f64, note_held: f64, velocity: Velocity) -> Vec<f64> {
-        let sus_samples = (note_held * (SAMPLE_RATE as f64)) as usize;
-        let envelope = self.envelope.play(sus_samples, velocity);
+    fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {
+        self.local_automation.get_main_envelope(sus_samples)
+    }
+}
+
+impl song::Instrument for Synthesizer {
+    fn play_midi_note(&self, note: midi::Note) -> Vec<f64> {
+        self.play_freq(
+            note.onset,
+            note.note_held,
+            note.pitch.get_freq(),
+            note.velocity,
+        )
+    }
+
+    fn play_freq(
+        &self,
+        onset: TimeStamp,
+        note_held: Duration,
+        freq: f64,
+        velocity: midi::Velocity,
+    ) -> Vec<f64> {
+        let sus_samples = note_held.to_samples();
+        let envelope = self.get_envelope(sus_samples);
+        let freq = self
+            .local_automation
+            .get_pitch_vec(onset, envelope.len())
+            .into_iter()
+            .map(|x| freq * 2_f64.powf((x * 2.0 - 1.0) * self.pitch_wheel_range / 1200.0))
+            .collect();
+        let freq = ValOrVec::Vec(freq);
+        let modulation = ValOrVec::Val(0.5);
         let mut out = vec![0.0; envelope.len()];
         for osc in &self.oscillators {
-            add_same_len(&mut out, osc.play_freq(freq, envelope.len()));
+            add_same_len(&mut out, osc.wave(&freq, &modulation, envelope.len()));
         }
         add_same_len(&mut out, envelope);
         out
     }
+}
 
+impl Synthesizer {
     pub fn play_test_chord(&self) -> Vec<f64> {
-        let mut out = self.play_freq(300.0, 2.0, Velocity::new(80).unwrap());
+        let time = TimeStamp::zero();
+        let duration = Duration::one_sec();
+        let mut out = self.play_freq(time, duration, 300.0, midi::Velocity::new(80).unwrap());
         add_same_len(
             &mut out,
-            self.play_freq(375.0, 2.0, Velocity::new(80).unwrap()),
+            self.play_freq(time, duration, 375.0, midi::Velocity::new(80).unwrap()),
         );
         add_same_len(
             &mut out,
-            self.play_freq(450.0, 2.0, Velocity::new(80).unwrap()),
+            self.play_freq(time, duration, 450.0, midi::Velocity::new(80).unwrap()),
         );
         add_same_len(
             &mut out,
-            self.play_freq(600.0, 2.0, Velocity::new(80).unwrap()),
+            self.play_freq(time, duration, 600.0, midi::Velocity::new(80).unwrap()),
         );
         out
     }
@@ -250,11 +157,5 @@ impl Synthesizer {
         let path = format!("out/synthtest/{}_chord.wav", self.name);
         let path = Path::new(&path);
         io::easy_save(track, path);
-    }
-}
-
-impl song::Instrument for Synthesizer {
-    fn play_midi_note(&self, pitch: Pitch, velocity: Velocity, duration: f64) -> Vec<f64> {
-        self.play_freq(pitch.get_freq(), duration, velocity)
     }
 }

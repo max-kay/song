@@ -1,3 +1,5 @@
+use crate::time::{TimeStamp, Duration};
+
 #[derive(Clone, Copy)]
 pub struct Velocity {
     value: u8,
@@ -46,28 +48,11 @@ impl Pitch {
     }
 }
 
-// #[derive(Clone, Copy)]
-// pub struct Pitchbend {
-//     value: u16,
-// }
-
-// impl Pitchbend {
-//     pub fn new(value: u16) -> Option<Self> {
-//         if value < 0x4000 {
-//             Some(Self { value })
-//         } else {
-//             None
-//         }
-//     }
-//     pub fn new_unchecked(value: u16) -> Self {
-//         Self { value }
-//     }
-// }
 
 #[derive(Clone, Copy)]
 pub struct Note {
     pub pitch: Pitch,
-    pub onset: f64,
-    pub duration: f64,
+    pub onset: TimeStamp,
+    pub note_held: Duration,
     pub velocity: Velocity,
 }

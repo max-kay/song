@@ -1,4 +1,4 @@
-use crate::constants::SAMPLE_RATE;
+use crate::consts::SAMPLE_RATE;
 use crate::utils;
 use std::fs::File;
 use std::path::Path;

@@ -1,27 +1,36 @@
-use crate::automation::{AutomationManager, ValAndCh};
+use crate::auto::ValAndCh;
+use crate::time::TimeStamp;
 use crate::utils::{add_from_index_by_ref, seconds_to_samples};
 
 pub trait Effect {
-    fn apply(&self, wave: &mut Vec<f64>, automation: &AutomationManager);
+    fn apply(&self, wave: &mut Vec<f64>, time_functions: Vec<ValAndCh>, time_triggerd: TimeStamp);
+    fn number_of_controls(&self) -> usize;
 }
 
-pub struct Delay {
-    pub time_delta: ValAndCh,
-    pub gain: ValAndCh,
-}
+pub struct Delay {}
 
 impl Effect for Delay {
-    fn apply(&self, wave: &mut Vec<f64>, automation: &AutomationManager) {
+    fn apply(&self, wave: &mut Vec<f64>, time_functions: Vec<ValAndCh>, time_triggered: TimeStamp) {
+        let gain_ch = &time_functions[0];
+        let delta_t_ch = &time_functions[1];
+
         let mut source = wave.clone();
-        let mut gain: f64 = self.gain.get_value(automation, 0.0);
-        let mut offset = self.time_delta.get_value(automation, 0.0);
+
+        let mut current_time = time_triggered;
+        let mut gain: f64 = gain_ch.get_value(time_triggered);
+        let mut delta_t = delta_t_ch.get_value(time_triggered);
         while gain > 0.005 {
-            //test this value
+            // test this value
             source = source.into_iter().map(|x| x * gain).collect();
-            add_from_index_by_ref(wave, &source, seconds_to_samples(offset));
-            offset += self.time_delta.get_value(automation, offset);
-            gain *= self.gain.get_value(automation, offset);
+            add_from_index_by_ref(wave, &source, seconds_to_samples(delta_t));
+            current_time = current_time.add_seconds(delta_t);
+            delta_t += delta_t_ch.get_value(current_time);
+            gain *= gain_ch.get_value(current_time);
         }
+    }
+
+    fn number_of_controls(&self) -> usize {
+        2
     }
 }
 
