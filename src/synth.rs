@@ -1,8 +1,8 @@
-use crate::auto::{AutomationManager, Lfo, PointDefined, TimeFunction, ValAndCh, ValOrVec};
+use crate::auto::{Lfo, PointDefined, TimeFunction, ValAndCh, ValOrVec};
 use crate::envelope::Envelope;
 use crate::midi;
 use crate::song::{self, Instrument};
-use crate::time::{Duration, TimeStamp};
+use crate::time::{Duration, TimeStamp, TimeKeeper};
 use crate::utils::add_same_len;
 use crate::{io, oscs};
 use std::collections::HashMap;
@@ -67,9 +67,9 @@ pub struct Synthesizer {
     name: String,
     oscillators: Vec<Box<dyn oscs::Oscillator>>,
     local_automation: LocalAutomation,
-    global_automation: Rc<AutomationManager>,
     connections: Connections,
     pitch_wheel_range: f64, // in cents
+    time_keeper: Rc<TimeKeeper>,
 }
 
 impl Synthesizer {
@@ -77,17 +77,16 @@ impl Synthesizer {
         name: String,
         oscillators: Vec<Box<dyn oscs::Oscillator>>,
         local_automation: LocalAutomation,
-        global_automation: Rc<AutomationManager>,
         connections: Connections,
-        pitch_wheel_range: f64,
+        time_keeper: Rc<TimeKeeper>
     ) -> Self {
         Self {
             name,
             oscillators,
             local_automation,
-            global_automation,
             connections,
-            pitch_wheel_range,
+            pitch_wheel_range: 2.0,
+            time_keeper
         }
     }
 
@@ -113,7 +112,7 @@ impl song::Instrument for Synthesizer {
         freq: f64,
         velocity: midi::Velocity,
     ) -> Vec<f64> {
-        let sus_samples = note_held.to_samples();
+        let sus_samples = self.time_keeper.duration_to_samples(note_held, onset);
         let envelope = self.get_envelope(sus_samples);
         let freq = self
             .local_automation
@@ -135,7 +134,7 @@ impl song::Instrument for Synthesizer {
 impl Synthesizer {
     pub fn play_test_chord(&self) -> Vec<f64> {
         let time = TimeStamp::zero();
-        let duration = Duration::one_sec();
+        let duration = self.time_keeper.duration_from_seconds(2.5, time);
         let mut out = self.play_freq(time, duration, 300.0, midi::Velocity::new(80).unwrap());
         add_same_len(
             &mut out,

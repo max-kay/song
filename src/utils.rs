@@ -46,3 +46,14 @@ pub fn seconds_to_samples(seconds: f64) -> usize {
 pub fn samples_to_seconds(samples: usize) -> f64 {
     (samples as f64) / (SAMPLE_RATE as f64)
 }
+
+pub fn user_input(prompt: &str) -> String {
+    println!("{}", prompt);
+
+    let mut input = String::new();
+    match std::io::stdin().read_line(&mut input) {
+        Ok(_) => {}
+        Err(error) => println!("{}", error),
+    };
+    input
+}

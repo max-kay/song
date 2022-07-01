@@ -1,5 +1,7 @@
+use std::rc::Rc;
+
 use crate::auto::ValAndCh;
-use crate::time::TimeStamp;
+use crate::time::{TimeStamp, TimeKeeper};
 use crate::utils::{add_from_index_by_ref, seconds_to_samples};
 
 pub trait Effect {
@@ -7,7 +9,9 @@ pub trait Effect {
     fn number_of_controls(&self) -> usize;
 }
 
-pub struct Delay {}
+pub struct Delay {
+    time_keeper: Rc<TimeKeeper>
+}
 
 impl Effect for Delay {
     fn apply(&self, wave: &mut Vec<f64>, time_functions: Vec<ValAndCh>, time_triggered: TimeStamp) {
@@ -23,7 +27,7 @@ impl Effect for Delay {
             // test this value
             source = source.into_iter().map(|x| x * gain).collect();
             add_from_index_by_ref(wave, &source, seconds_to_samples(delta_t));
-            current_time = current_time.add_seconds(delta_t);
+            current_time = self.time_keeper.add_seconds_to_stamp(current_time, delta_t);
             delta_t += delta_t_ch.get_value(current_time);
             gain *= gain_ch.get_value(current_time);
         }

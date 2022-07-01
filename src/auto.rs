@@ -164,24 +164,3 @@ impl TimeFunction for Lfo {
     }
 }
 
-pub struct AutomationManager {
-    channels: HashMap<u8, Box<dyn TimeFunction>>,
-}
-
-impl AutomationManager {
-    pub fn new() -> Self {
-        Self {
-            channels: HashMap::<u8, Box<dyn TimeFunction>>::new(),
-        }
-    }
-
-    pub fn get_channel(&self, channel: u8) -> Option<Box<dyn TimeFunction>> {
-        todo!();
-    }
-}
-
-impl Default for AutomationManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}

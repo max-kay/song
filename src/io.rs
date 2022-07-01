@@ -1,8 +1,11 @@
-use crate::consts::SAMPLE_RATE;
-use crate::utils;
+use crate::song::Song;
+use crate::{consts::SAMPLE_RATE, song};
+use crate::utils::{self, user_input};
+use std::error::Error;
 use std::fs::File;
 use std::path::Path;
 use wav::{self, WAV_FORMAT_PCM};
+use midly::Smf;
 
 pub fn save_m_i16_wav(track: Vec<f64>, path: &Path) -> std::io::Result<()> {
     let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE, 16);
@@ -19,4 +22,15 @@ pub fn save_m_i16_wav(track: Vec<f64>, path: &Path) -> std::io::Result<()> {
 pub fn easy_save(track: Vec<f64>, path: &Path) {
     let track = utils::normalize(&track);
     save_m_i16_wav(track, path).expect("Error in easy_save")
+}
+
+pub fn read_midi_file(path: &Path) -> Result<Song, Box<dyn Error>>{
+    let bytes = std::fs::read(path)?;
+    let name = user_input("What's the name of the song?");
+    let mut song = Song::new(name);
+    let smf = Smf::parse(&bytes)?;
+    
+
+
+    Ok(song)
 }

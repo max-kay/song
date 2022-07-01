@@ -1,9 +1,10 @@
-use crate::auto::AutomationManager;
+use std::rc::Rc;
+
 use crate::effects::Effect;
 use crate::midi;
-use crate::time::{Duration, TimeStamp};
+use crate::time::{Duration, TimeStamp, TimeKeeper};
 use crate::utils::add_from_index;
-use std::rc::Rc;
+
 
 pub trait Instrument {
     fn play_freq(
@@ -37,7 +38,7 @@ pub struct Track {
     gain: f64,
     effects: Vec<Box<dyn Effect>>,
     notes: Vec<midi::Note>,
-    global_automation: Rc<AutomationManager>,
+    time_keeper: Rc<TimeKeeper>
 }
 
 impl Track {
@@ -45,7 +46,7 @@ impl Track {
         let mut out = Vec::<f64>::new();
         for note in &self.notes {
             let sound = self.instrument.play_midi_note(*note);
-            add_from_index(&mut out, sound, note.onset.to_samples());
+            add_from_index(&mut out, sound, self.time_keeper.stamp_to_samples(note.onset));
         }
         for effect in &self.effects {
             todo!()
@@ -55,38 +56,30 @@ impl Track {
 
     pub fn from_instrument(
         instrument: Box<dyn Instrument>,
-        global_automation: Rc<AutomationManager>,
+        time_keeper: Rc<TimeKeeper>,
     ) -> Self {
         Self {
             instrument,
             gain: 1.0,
             effects: Vec::new(),
             notes: Vec::new(),
-            global_automation,
+            time_keeper
         }
     }
 }
 
 pub struct Song {
     name: String,
-    global_automation: Rc<AutomationManager>,
     tracks: Vec<Track>,
+    time_keeper: Rc<TimeKeeper>,
 }
 
 impl Song {
-    pub fn new(name: String, global_automation: Rc<AutomationManager>, tracks: Vec<Track>) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
-            global_automation,
-            tracks,
-        }
-    }
-
-    pub fn empty(name: String) -> Self {
-        Self {
-            name,
-            global_automation: Rc::new(AutomationManager::new()),
             tracks: Vec::new(),
+            time_keeper: Rc::new(TimeKeeper::default())
         }
     }
 
@@ -97,7 +90,7 @@ impl Song {
     pub fn add_instrument<I: Instrument>(&mut self, instrument: Box<dyn Instrument>) {
         self.tracks.push(Track::from_instrument(
             instrument,
-            Rc::clone(&self.global_automation),
+            Rc::clone(&self.time_keeper)
         ))
     }
 }

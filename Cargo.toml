@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 wav = "1.0.0"
+midly = "0.5.2"
