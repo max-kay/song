@@ -9,3 +9,4 @@ pub mod utils;
 pub mod oscs;
 pub mod time;
 pub mod envelope;
+pub mod wave;

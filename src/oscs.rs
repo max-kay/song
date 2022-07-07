@@ -1,8 +1,8 @@
-use std::f64::consts::{PI, TAU};
+use std::{f64::consts::{PI, TAU}, marker::PhantomData};
 
-use crate::{auto::ValOrVec, consts::SAMPLE_RATE};
+use crate::{auto::ValOrVec, consts::SAMPLE_RATE, wave::Wave};
 
-pub trait Oscillator {
+pub trait Oscillator<W: Wave> {
     fn get_sample(&self, phase: f64, modulation: f64) -> f64;
 
     fn val_all(&self, freq: &f64, modulation: &f64, samples: usize) -> Vec<f64> {
@@ -47,9 +47,9 @@ pub trait Oscillator {
         out
     }
 
-    fn wave(&self, freq: &ValOrVec, modulation: &ValOrVec, samples: usize) -> Vec<f64> {
+    fn wave(&self, freq: &ValOrVec, modulation: &ValOrVec, samples: usize) -> W {
         use ValOrVec::*;
-        match freq {
+        W::from_vec(match freq {
             Val(freq) => match modulation {
                 Val(modulation) => self.val_all(freq, modulation, samples),
                 Vec(modulation) => self.var_mod(freq, modulation, samples),
@@ -58,22 +58,22 @@ pub trait Oscillator {
                 Val(modulation) => self.var_freq(freq, modulation, samples),
                 Vec(modulation) => self.var_all(freq, modulation, samples),
             },
-        }
+        })
     }
 }
 
-pub struct Sine(f64);
+pub struct Sine<W>(f64, PhantomData<W>);
 
-impl Oscillator for Sine {
+impl<W:Wave> Oscillator<W> for Sine<W> {
     #[inline(always)]
     fn get_sample(&self, phase: f64, _modulation: f64) -> f64 {
         phase.sin() * self.0
     }
 }
 
-pub struct ModSquare(f64);
+pub struct ModSquare<W>(f64, PhantomData<W>);
 
-impl Oscillator for ModSquare {
+impl<W:Wave> Oscillator<W> for ModSquare<W> {
     #[inline(always)]
     fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
         if phase < modulation * TAU {
@@ -84,9 +84,9 @@ impl Oscillator for ModSquare {
     }
 }
 
-pub struct ModSaw(f64);
+pub struct ModSaw<W>(f64, PhantomData<W>);
 
-impl Oscillator for ModSaw {
+impl<W:Wave> Oscillator<W> for ModSaw<W> {
     #[inline(always)]
     fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
         if phase < modulation * TAU {

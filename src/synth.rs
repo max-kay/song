@@ -1,35 +1,36 @@
-use crate::auto::{Lfo, PointDefined, TimeFunction, ValAndCh, ValOrVec};
+use crate::auto::{Lfo, PointDefined, TimeFunction, Control, ValOrVec};
 use crate::envelope::Envelope;
 use crate::midi;
 use crate::song::{self, Instrument};
-use crate::time::{Duration, TimeStamp, TimeKeeper};
-use crate::utils::add_same_len;
+use crate::time::{Duration, TimeKeeper, TimeStamp};
+use crate::wave::Wave;
 use crate::{io, oscs};
-use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::path::Path;
 use std::rc::Rc;
 
-const LFO1: u8 = 0;
-const LFO2: u8 = 1;
-const PITCHBEND: u8 = 2;
-const MOD_WHEEL: u8 = 3;
-const HARD_CODED_CHANNELS: [u8; 4] = [LFO1, LFO2, PITCHBEND, MOD_WHEEL];
-
-pub struct LocalAutomation {
-    channels: HashMap<u8, Box<dyn TimeFunction>>,
+pub struct SynthAutomation {
+    lfo1: Lfo,
+    lfo2: Lfo,
+    pitchbend: PointDefined,
+    modulation_wheel: PointDefined,
     main_envelope: Envelope,
     alt_envelope: Envelope,
+    time_keeper: Rc<TimeKeeper>,
 }
 
-impl LocalAutomation {
-    fn empty() -> Self {
-        let mut channels = HashMap::<u8, Box<dyn TimeFunction>>::new();
-        channels.insert(LFO1, Box::new(Lfo::default_lfo())); // lfo1
-        channels.insert(LFO2, Box::new(Lfo::default_lfo())); // lfo2
-        channels.insert(PITCHBEND, Box::new(PointDefined::one_point(0.5))); // pitchbend
-        channels.insert(MOD_WHEEL, Box::new(PointDefined::one_point(0.5))); // modulation_wheel
+impl SynthAutomation {
+    fn empty(time_keeper: Rc<TimeKeeper>) -> Self {
+        let lfo1 = Lfo::default_lfo();
+        let lfo2 = Lfo::default_lfo();
+        let pitchbend = PointDefined::one_point(0.5, Rc::clone(&time_keeper));
+        let modulation_wheel = PointDefined::one_point(0.5, Rc::clone(&time_keeper));
         Self {
-            channels,
+            lfo1,
+            lfo2,
+            pitchbend,
+            modulation_wheel,
+            time_keeper,
             main_envelope: Envelope::default(),
             alt_envelope: Envelope::default(),
         }
@@ -40,53 +41,40 @@ impl LocalAutomation {
     }
 
     pub fn get_pitch_vec(&self, onset: TimeStamp, samples: usize) -> Vec<f64> {
-        self.channels
-            .get(&PITCHBEND)
-            .expect("Error while getting pitchbendvec")
-            .get_vec(onset, samples)
-    }
-
-    pub fn get_channel(&self, channel: u8) -> Option<&dyn TimeFunction> {
-        match self.channels.get(&channel) {
-            Some(timefunction) => Some(&**timefunction),
-            None => None,
-        }
-    }
-
-    pub fn set_channel(&mut self, timefunction: Box<dyn TimeFunction>, channel: u8) {
-        assert!(!HARD_CODED_CHANNELS.contains(&channel), "channel 0 to 3 are used as defaults for lfo1, lfo2, pitchbend, modulation_wheel in that order");
-        self.channels.insert(channel, timefunction);
+        self.pitchbend.get_vec(onset, samples)
     }
 }
 
 pub struct Connections {
-    connections: Vec<ValAndCh>,
+    connections: Vec<Control>,
 }
 
-pub struct Synthesizer {
+pub struct Synthesizer<W: Wave> {
+    phantom: PhantomData<W>,
     name: String,
-    oscillators: Vec<Box<dyn oscs::Oscillator>>,
-    local_automation: LocalAutomation,
+    oscillators: Vec<Box<dyn oscs::Oscillator<W>>>,
+    local_automation: SynthAutomation,
     connections: Connections,
     pitch_wheel_range: f64, // in cents
     time_keeper: Rc<TimeKeeper>,
 }
 
-impl Synthesizer {
+impl<W: Wave> Synthesizer<W> {
     pub fn new(
         name: String,
-        oscillators: Vec<Box<dyn oscs::Oscillator>>,
-        local_automation: LocalAutomation,
+        oscillators: Vec<Box<dyn oscs::Oscillator<W>>>,
+        local_automation: SynthAutomation,
         connections: Connections,
-        time_keeper: Rc<TimeKeeper>
+        time_keeper: Rc<TimeKeeper>,
     ) -> Self {
         Self {
+            phantom: PhantomData,
             name,
             oscillators,
             local_automation,
             connections,
             pitch_wheel_range: 2.0,
-            time_keeper
+            time_keeper,
         }
     }
 
@@ -95,8 +83,8 @@ impl Synthesizer {
     }
 }
 
-impl song::Instrument for Synthesizer {
-    fn play_midi_note(&self, note: midi::Note) -> Vec<f64> {
+impl<W: Wave> song::Instrument<W> for Synthesizer<W> {
+    fn play_midi_note(&self, note: midi::Note) -> W {
         self.play_freq(
             note.onset,
             note.note_held,
@@ -111,7 +99,7 @@ impl song::Instrument for Synthesizer {
         note_held: Duration,
         freq: f64,
         velocity: midi::Velocity,
-    ) -> Vec<f64> {
+    ) -> W {
         let sus_samples = self.time_keeper.duration_to_samples(note_held, onset);
         let envelope = self.get_envelope(sus_samples);
         let freq = self
@@ -122,31 +110,34 @@ impl song::Instrument for Synthesizer {
             .collect();
         let freq = ValOrVec::Vec(freq);
         let modulation = ValOrVec::Val(0.5);
-        let mut out = vec![0.0; envelope.len()];
+        let mut wave = W::zeros(envelope.len());
         for osc in &self.oscillators {
-            add_same_len(&mut out, osc.wave(&freq, &modulation, envelope.len()));
+            wave.add_consuming(osc.wave(&freq, &modulation, envelope.len()), 0);
         }
-        add_same_len(&mut out, envelope);
-        out
+        wave.scale_by_vec(envelope);
+        wave
+    }
+    fn name(&self) -> &str {
+        &self.name
     }
 }
 
-impl Synthesizer {
-    pub fn play_test_chord(&self) -> Vec<f64> {
+impl<W: Wave> Synthesizer<W> {
+    pub fn play_test_chord(&self) -> W {
         let time = TimeStamp::zero();
         let duration = self.time_keeper.duration_from_seconds(2.5, time);
         let mut out = self.play_freq(time, duration, 300.0, midi::Velocity::new(80).unwrap());
-        add_same_len(
-            &mut out,
+        out.add_consuming(
             self.play_freq(time, duration, 375.0, midi::Velocity::new(80).unwrap()),
+            0,
         );
-        add_same_len(
-            &mut out,
+        out.add_consuming(
             self.play_freq(time, duration, 450.0, midi::Velocity::new(80).unwrap()),
+            0,
         );
-        add_same_len(
-            &mut out,
+        out.add_consuming(
             self.play_freq(time, duration, 600.0, midi::Velocity::new(80).unwrap()),
+            0,
         );
         out
     }

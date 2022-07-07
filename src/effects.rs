@@ -1,40 +1,65 @@
+use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::auto::ValAndCh;
-use crate::time::{TimeStamp, TimeKeeper};
-use crate::utils::{add_from_index_by_ref, seconds_to_samples};
+use crate::auto::Control;
+use crate::time::{TimeKeeper, TimeStamp};
+use crate::utils::seconds_to_samples;
+use crate::wave::Wave;
 
-pub trait Effect {
-    fn apply(&self, wave: &mut Vec<f64>, time_functions: Vec<ValAndCh>, time_triggerd: TimeStamp);
-    fn number_of_controls(&self) -> usize;
+pub enum EffectNode<W: Wave> {
+    Parallel(Vec<Box<dyn Effect<W>>>, Box<Self>),
+    Series(Box<dyn Effect<W>>, Box<Self>),
+    End,
 }
 
-pub struct Delay {
-    time_keeper: Rc<TimeKeeper>
+impl<W: Wave> EffectNode<W> {
+    pub fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
+        match self {
+            EffectNode::Parallel(effects, node) => {
+                let old_wave = wave.clone();
+                wave.clear();
+                for e in effects {
+                    let mut applied = old_wave.clone();
+                    e.apply(&mut applied, time_triggered);
+                    wave.add_consuming(applied, 0)
+                }
+                node.apply(wave, time_triggered)
+            }
+            EffectNode::Series(effect, node) => {
+                effect.apply(wave, time_triggered);
+                node.apply(wave, time_triggered)
+            }
+            EffectNode::End => (),
+        }
+    }
 }
 
-impl Effect for Delay {
-    fn apply(&self, wave: &mut Vec<f64>, time_functions: Vec<ValAndCh>, time_triggered: TimeStamp) {
-        let gain_ch = &time_functions[0];
-        let delta_t_ch = &time_functions[1];
+pub trait Effect<W: Wave> {
+    fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
+}
 
+pub struct Delay<W: Wave> {
+    phantom: PhantomData<W>,
+    time_keeper: Rc<TimeKeeper>,
+    gain_ctrl: Control,
+    delta_t_ctrl: Control,
+}
+
+impl<W: Wave> Effect<W> for Delay<W> {
+    fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
         let mut source = wave.clone();
 
         let mut current_time = time_triggered;
-        let mut gain: f64 = gain_ch.get_value(time_triggered);
-        let mut delta_t = delta_t_ch.get_value(time_triggered);
+        let mut gain: f64 = self.gain_ctrl.get_value(time_triggered);
+        let mut delta_t = self.delta_t_ctrl.get_value(time_triggered);
         while gain > 0.005 {
             // test this value
-            source = source.into_iter().map(|x| x * gain).collect();
-            add_from_index_by_ref(wave, &source, seconds_to_samples(delta_t));
+            source.scale(gain);
+            wave.add(&source, seconds_to_samples(delta_t));
             current_time = self.time_keeper.add_seconds_to_stamp(current_time, delta_t);
-            delta_t += delta_t_ch.get_value(current_time);
-            gain *= gain_ch.get_value(current_time);
+            delta_t += self.delta_t_ctrl.get_value(current_time);
+            gain *= self.gain_ctrl.get_value(current_time);
         }
-    }
-
-    fn number_of_controls(&self) -> usize {
-        2
     }
 }
 
