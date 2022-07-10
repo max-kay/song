@@ -1,3 +1,4 @@
+use crate::auto;
 use crate::consts::SAMPLE_RATE;
 use crate::effects;
 use crate::instruments;
@@ -36,22 +37,22 @@ pub fn read_midi_file<W: 'static + wave::Wave>(
     let mut song = crate::Song::new(name);
     let smf = midly::Smf::parse(&bytes)?;
     let header = smf.header;
-    let time_keeper = Rc::new(parse_smf_for_time(&smf));
+    let time_manager = Rc::new(parse_smf_for_time(&smf));
     match header.timing {
-        // midly::Timing::Metrical(value) => time_keeper.set_ticks_per_beat(value.as_int()),
+        // midly::Timing::Metrical(value) => time_manager.set_ticks_per_beat(value.as_int()),
         midly::Timing::Timecode(_, _) => todo!(),
         midly::Timing::Metrical(_) => (),
     }
     let tracks = smf.tracks;
 
     for track in tracks {
-        song.add_midi_track(parse_midi_track::<W>(track, Rc::clone(&time_keeper)));
+        song.add_midi_track(parse_midi_track::<W>(track, Rc::clone(&time_manager)));
     }
 
     Ok(song)
 }
 
-fn parse_smf_for_time(smf: &midly::Smf) -> time::TimeKeeper {
+fn parse_smf_for_time(smf: &midly::Smf) -> time::TimeManager {
     let ticks_per_beat = match smf.header.timing {
         midly::Timing::Metrical(val) => val.as_int(),
         midly::Timing::Timecode(_, _) => todo!(),
@@ -79,7 +80,7 @@ fn parse_smf_for_time(smf: &midly::Smf) -> time::TimeKeeper {
         }
     }
 
-    time::TimeKeeper {
+    time::TimeManager {
         ticks_per_beat,
         beats_per_bar,
         beat_value,
@@ -87,10 +88,10 @@ fn parse_smf_for_time(smf: &midly::Smf) -> time::TimeKeeper {
     }
 }
 
-fn parse_midi_track<W: 'static + wave::Wave>(
+fn parse_midi_track<'a, W: 'static + wave::Wave>(
     track: Vec<midly::TrackEvent>,
-    time_keeper: Rc<time::TimeKeeper>,
-) -> tracks::MidiTrack<W> {
+    time_manager: Rc<time::TimeManager>,
+) -> tracks::MidiTrack<'a, W> {
     let mut track_name = String::new();
     let mut track_number = 0;
     let mut current_ticks: u64 = 0;
@@ -127,12 +128,14 @@ fn parse_midi_track<W: 'static + wave::Wave>(
             midly::TrackEventKind::Escape(_) => todo!(),
         }
     }
-    tracks::MidiTrack {
+    tracks::MidiTrack::<'a> {
         name: track_name,
         instrument: Box::new(instruments::EmptyInstrument::new()),
         gain: 1.0,
+        automation: Rc::new(auto::AutomationManager::new()),
         effects: effects::EffectNode::Bypass,
+        control_panel: effects::CtrlPanel::Bypass,
         notes: Vec::new(),
-        time_keeper: Rc::clone(&time_keeper),
+        time_manager: Rc::clone(&time_manager),
     }
 }

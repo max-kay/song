@@ -1,40 +1,39 @@
-use crate::utils::envelope::Envelope;
-use crate::utils::oscs;
 use super::MidiInstrument;
 use crate::auto;
-use crate::auto::TimeFunction;
+use crate::auto::CtrlVal;
+use crate::effects;
 use crate::io;
 use crate::time;
+use crate::time::TimeKeeper;
+use crate::time::TimeManager;
 use crate::tracks::midi;
+use crate::utils::envelope;
+use crate::utils::oscs;
+use crate::wave;
 use crate::wave::Wave;
-use std::marker::PhantomData;
 use std::path::Path;
 use std::rc::Rc;
 
 pub struct SynthAutomation {
+    main_envelope: envelope::Envelope,
+    alt_envelope: envelope::Envelope,
+    current_velocity: auto::Constant,
     lfo1: auto::Lfo,
     lfo2: auto::Lfo,
-    pitchbend: auto::PointDefined,
-    modulation_wheel: auto::PointDefined,
-    main_envelope: Envelope,
-    alt_envelope: Envelope,
-    time_keeper: Rc<time::TimeKeeper>,
+    track_automation: Rc<auto::AutomationManager>,
+    time_manager: Rc<time::TimeManager>,
 }
 
 impl SynthAutomation {
-    fn empty(time_keeper: Rc<time::TimeKeeper>) -> Self {
-        let lfo1 = auto::Lfo::default_lfo();
-        let lfo2 = auto::Lfo::default_lfo();
-        let pitchbend = auto::PointDefined::one_point(0.5, Rc::clone(&time_keeper));
-        let modulation_wheel = auto::PointDefined::one_point(0.5, Rc::clone(&time_keeper));
+    fn empty(time_manager: Rc<time::TimeManager>) -> Self {
         Self {
-            lfo1,
-            lfo2,
-            pitchbend,
-            modulation_wheel,
-            time_keeper,
-            main_envelope: Envelope::default(),
-            alt_envelope: Envelope::default(),
+            main_envelope: envelope::Envelope::default(),
+            alt_envelope: envelope::Envelope::default(),
+            current_velocity: auto::Constant::default(),
+            lfo1: auto::Lfo::default(),
+            lfo2: auto::Lfo::default(),
+            track_automation: Rc::new(auto::AutomationManager::new()),
+            time_manager,
         }
     }
 
@@ -42,101 +41,131 @@ impl SynthAutomation {
         self.main_envelope.get_envelope(sus_samples)
     }
 
-    pub fn get_pitch_vec(&self, onset: time::TimeStamp, samples: usize) -> Vec<f64> {
-        self.pitchbend.get_vec(onset, samples)
+    pub fn set_track_automation(&mut self, automation: &Rc<auto::AutomationManager>) {
+        self.track_automation = Rc::clone(automation)
     }
 }
 
-pub struct Connections {
-    connections: Vec<auto::Control>,
+impl TimeKeeper for SynthAutomation {
+    fn set_time_manager(&mut self, time_manager: &Rc<time::TimeManager>) {
+        self.time_manager = Rc::clone(time_manager);
+        self.lfo1.set_time_manager(time_manager);
+        self.lfo2.set_time_manager(time_manager)
+    }
 }
 
-pub struct Synthesizer<W: Wave> {
-    phantom: PhantomData<W>,
+pub struct Synthesizer<'a, W: Wave> {
     name: String,
-    oscillators: Vec<Box<dyn oscs::Oscillator<W>>>,
+    effects: effects::EffectNode<W>,
+    effect_ctrl: effects::CtrlPanel<'a>,
+    oscillators: Vec<Box<dyn oscs::Oscillator>>,
     local_automation: SynthAutomation,
-    connections: Connections,
+    pitch_control: auto::Control,
+    modulation_control: auto::Control,
+    time_manager: Rc<time::TimeManager>,
     pitch_wheel_range: f64, // in cents
-    time_keeper: Rc<time::TimeKeeper>,
 }
 
-impl<W: Wave> Synthesizer<W> {
-    pub fn new(
-        name: String,
-        oscillators: Vec<Box<dyn oscs::Oscillator<W>>>,
-        local_automation: SynthAutomation,
-        connections: Connections,
-        time_keeper: Rc<time::TimeKeeper>,
-    ) -> Self {
+impl<'a, W: Wave> Synthesizer<'a, W> {
+    pub fn new(name: String, oscillators: Vec<Box<dyn oscs::Oscillator>>) -> Self {
         Self {
-            phantom: PhantomData,
             name,
+            effects: effects::EffectNode::Bypass,
+            effect_ctrl: effects::CtrlPanel::Bypass,
+            local_automation: SynthAutomation::empty(Rc::new(time::TimeManager::default())),
+            pitch_control: auto::Control::from_values(auto::CtrlVal::from_num(0.5_f32), 1.0),
+            modulation_control: auto::Control::from_values(auto::CtrlVal::from_num(0_f32), 1.0),
             oscillators,
-            local_automation,
-            connections,
             pitch_wheel_range: 2.0,
-            time_keeper,
+            time_manager: Rc::new(time::TimeManager::default()),
         }
     }
 
-    fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {
-        self.local_automation.get_main_envelope(sus_samples)
+    pub fn set_time_manager(&mut self, time_manager: &Rc<time::TimeManager>) {
+        self.time_manager = Rc::clone(time_manager);
+        self.local_automation.set_time_manager(time_manager)
     }
 }
 
-impl<W: Wave> Synthesizer<W> {
+impl<'a, W: Wave> Synthesizer<'a, W> {
+    fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {
+        self.local_automation.get_main_envelope(sus_samples)
+    }
     fn play_freq(
         &self,
         note_on: time::TimeStamp,
         note_off: time::TimeStamp,
         freq: f64,
-        velocity: f64,
+        velocity: auto::CtrlVal,
     ) -> W {
-        let sus_samples = self.time_keeper.duration_to_samples(note_on, note_off);
+        let velocity = auto::Constant(velocity);
+        let sus_samples = self.time_manager.duration_to_samples(note_on, note_off);
         let envelope = self.get_envelope(sus_samples);
-        let freq = self
-            .local_automation
-            .get_pitch_vec(note_on, envelope.len())
+        let freq: Vec<f64> = self
+            .pitch_control
+            .get_vec(note_on, envelope.len())
             .into_iter()
             .map(|x| freq * 2_f64.powf((x * 2.0 - 1.0) * self.pitch_wheel_range / 1200.0))
             .collect();
-        let freq = auto::ValOrVec::Vec(freq);
-        let modulation = auto::ValOrVec::Val(0.5);
+        let modulation = self.modulation_control.get_vec(note_on, envelope.len());
         let mut wave = W::zeros(envelope.len());
         for osc in &self.oscillators {
-            wave.add_consuming(osc.wave(&freq, &modulation, envelope.len()), 0);
+            wave.add_consuming(W::from_vec(osc.play(&freq, &modulation, envelope.len())), 0);
         }
         wave.scale_by_vec(envelope);
+        self.effects.apply(&mut wave, &self.effect_ctrl, note_on);
         wave
     }
 }
 
-impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
+impl<W: wave::Wave> time::TimeKeeper for Synthesizer<'_, W> {
+    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
+        self.effects.set_time_manager(time_manager);
+        self.effect_ctrl.set_time_manager(time_manager);
+        self.local_automation.set_time_manager(time_manager);
+        self.pitch_control.set_time_manager(time_manager);
+        self.modulation_control.set_time_manager(time_manager)
+    }
+}
+
+impl<'a, W: Wave> MidiInstrument<W> for Synthesizer<'a, W> {
     fn play_note(&self, note: midi::Note) -> W {
         self.play_freq(note.on, note.off, note.pitch.get_freq(), note.velocity)
     }
-    fn play_notes(&self, notes: &Vec<midi::Note>) -> W {
+    fn play_notes(&self, notes: &[midi::Note]) -> W {
         let mut wave = W::new();
         for note in notes {
             let sound = self.play_note(*note);
-            wave.add_consuming(sound, self.time_keeper.stamp_to_samples(note.on));
+            wave.add_consuming(sound, self.time_manager.stamp_to_samples(note.on));
         }
         wave
     }
     fn name(&self) -> &str {
         &self.name
     }
+
+    fn set_track_automation(&mut self, automation: &Rc<auto::AutomationManager>) {
+        self.local_automation.set_track_automation(automation)
+    }
 }
 
-impl<W: Wave> Synthesizer<W> {
+impl<'a, W: Wave> Synthesizer<'a, W> {
     pub fn play_test_chord(&self) -> W {
-        let note_on = self.time_keeper.zero();
-        let note_off = self.time_keeper.seconds_to_stamp(2.0);
-        let mut out = self.play_freq(note_on, note_off, 300.0, 0.7);
-        out.add_consuming(self.play_freq(note_on, note_off, 375.0, 0.7), 0);
-        out.add_consuming(self.play_freq(note_on, note_off, 450.0, 0.7), 0);
-        out.add_consuming(self.play_freq(note_on, note_off, 600.0, 0.7), 0);
+        let note_on = self.time_manager.zero();
+        let note_off = self.time_manager.seconds_to_stamp(2.0);
+        let mut out = self.play_freq(note_on, note_off, 300.0, CtrlVal::from_num(0.7_f64));
+        out.add_consuming(
+            self.play_freq(note_on, note_off, 375.0, CtrlVal::from_num(0.7_f64)),
+            0,
+        );
+        out.add_consuming(
+            self.play_freq(note_on, note_off, 450.0, CtrlVal::from_num(0.7_f64)),
+            0,
+        );
+        out.add_consuming(
+            self.play_freq(note_on, note_off, 600.0, CtrlVal::from_num(0.7_f64)),
+            0,
+        );
         out
     }
 

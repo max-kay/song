@@ -1,14 +1,20 @@
+use std::rc::Rc;
+
 use crate::utils::{samples_to_seconds, seconds_to_samples};
 
+pub trait TimeKeeper {
+    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>);
+}
+
 #[derive(Debug, Clone)]
-pub struct TimeKeeper {
+pub struct TimeManager {
     pub ticks_per_beat: u16,
     pub beats_per_bar: u16,
     pub beat_value: u16,
     pub bps: f64,
 }
 
-impl TimeKeeper {
+impl TimeManager {
     pub fn set_ticks_per_beat(&mut self, value: u16) {
         self.ticks_per_beat = value
     }
@@ -26,7 +32,7 @@ impl TimeKeeper {
     }
 }
 
-impl Default for TimeKeeper {
+impl Default for TimeManager {
     fn default() -> Self {
         Self {
             ticks_per_beat: 120,
@@ -37,7 +43,7 @@ impl Default for TimeKeeper {
     }
 }
 
-impl TimeKeeper {
+impl TimeManager {
     fn stamp_to_ticks(&self, stamp: TimeStamp) -> u16 {
         stamp.tick + (stamp.beat + stamp.bar * self.beats_per_bar) * self.ticks_per_beat
     }
@@ -59,7 +65,8 @@ impl TimeKeeper {
         (seconds * ticks_per_second) as u16
     }
 }
-impl TimeKeeper {
+
+impl TimeManager {
     pub fn stamp_to_seconds(&self, time_stamp: TimeStamp) -> f64 {
         self.ticks_to_seconds(self.stamp_to_ticks(time_stamp))
     }
@@ -73,7 +80,7 @@ impl TimeKeeper {
     }
 }
 
-impl TimeKeeper {
+impl TimeManager {
     pub fn zero(&self) -> TimeStamp {
         TimeStamp {
             bar: 0,
@@ -83,7 +90,7 @@ impl TimeKeeper {
     }
 }
 
-impl TimeKeeper {
+impl TimeManager {
     pub fn add_seconds_to_stamp(&self, time_stamp: TimeStamp, seconds: f64) -> TimeStamp {
         self.seconds_to_stamp(seconds + self.stamp_to_seconds(time_stamp))
     }
@@ -97,11 +104,12 @@ impl TimeKeeper {
     }
 }
 
-impl TimeKeeper {
+impl TimeManager {
     pub fn get_stamp_vec(&self, onset: TimeStamp, samples: usize) -> Vec<TimeStamp> {
+        let onset = self.stamp_to_seconds(onset);
         let mut out = Vec::new();
         for i in 0..samples {
-            out.push(self.seconds_to_stamp(samples_to_seconds(i)))
+            out.push(self.seconds_to_stamp(samples_to_seconds(i) + onset))
         }
         out
     }
