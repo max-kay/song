@@ -5,7 +5,7 @@ pub struct TimeKeeper {
     pub ticks_per_beat: u16,
     pub beats_per_bar: u16,
     pub beat_value: u16,
-    pub bpm: f64,
+    pub bps: f64,
 }
 
 impl TimeKeeper {
@@ -19,7 +19,10 @@ impl TimeKeeper {
         self.beat_value = value
     }
     pub fn set_bpm(&mut self, value: f64) {
-        self.bpm = value
+        self.bps = value / 60.0
+    }
+    pub fn get_bpm(&self) -> f64 {
+        self.bps * 60.0
     }
 }
 
@@ -29,65 +32,48 @@ impl Default for TimeKeeper {
             ticks_per_beat: 120,
             beats_per_bar: 4,
             beat_value: 4,
-            bpm: 120.0,
+            bps: 2.0,
         }
     }
 }
 
 impl TimeKeeper {
-    pub fn stamp_to_seconds(&self, time_stamp: TimeStamp) -> f64 {
-        time_stamp.bar as f64 * self.beats_per_bar as f64 / self.bpm * 60.0
-            + time_stamp.beat as f64 / self.bpm * 60.0
-            + time_stamp.tick as f64 / self.bpm * 60.0 / self.ticks_per_beat as f64
+    fn stamp_to_ticks(&self, stamp: TimeStamp) -> u16 {
+        stamp.tick + (stamp.beat + stamp.bar * self.beats_per_bar) * self.ticks_per_beat
     }
 
-    pub fn duration_from_stamps(&self, t0: TimeStamp, t1: TimeStamp) -> Duration {
-        let mut carry_beat = 0;
-        let ticks = match t1.tick.checked_sub(t0.tick) {
-            Some(val) => val,
-            None => {
-                carry_beat = 1;
-                t1.tick + self.ticks_per_beat - t0.tick
-            }
-        };
-        let mut carry_bar = 0;
-        let beats = match t1.beat.checked_sub(t0.beat + carry_beat) {
-            Some(val) => val,
-            None => {
-                carry_bar = 1;
-                t1.tick + self.beats_per_bar - t0.beat
-            }
-        };
-        let bars = t1.bar - t0.bar + carry_bar;
-        Duration { bars, beats, ticks }
+    fn ticks_to_seconds(&self, ticks: u16) -> f64 {
+        ticks as f64 / self.ticks_per_beat as f64 / self.bps as f64
+    }
+
+    fn ticks_to_stamp(&self, ticks: u16) -> TimeStamp {
+        TimeStamp {
+            bar: ticks / (self.ticks_per_beat * self.beats_per_bar),
+            beat: (ticks / self.ticks_per_beat) % self.beats_per_bar,
+            tick: ticks % (self.ticks_per_beat * self.beats_per_bar),
+        }
+    }
+
+    fn seconds_to_ticks(&self, seconds: f64) -> u16 {
+        let ticks_per_second = self.bps / 60.0 * self.ticks_per_beat as f64;
+        (seconds * ticks_per_second) as u16
+    }
+}
+impl TimeKeeper {
+    pub fn stamp_to_seconds(&self, time_stamp: TimeStamp) -> f64 {
+        self.ticks_to_seconds(self.stamp_to_ticks(time_stamp))
     }
 
     pub fn stamp_to_samples(&self, time_stamp: TimeStamp) -> usize {
         seconds_to_samples(self.stamp_to_seconds(time_stamp))
     }
 
-    pub fn add_seconds_to_stamp(&self, time_stamp: TimeStamp, seconds: f64) -> TimeStamp {
-        self.add_duration_to_stamp(time_stamp, self.duration_from_seconds(seconds, time_stamp))
-    }
-
     pub fn seconds_to_stamp(&self, seconds: f64) -> TimeStamp {
-        let start = self.zero();
-        let temp_tick = self.seconds_to_ticks(seconds, start);
-        let bar = temp_tick / (self.ticks_per_beat * self.beats_per_bar);
-        let beat = (temp_tick / self.ticks_per_beat) % self.ticks_per_beat;
-        let tick = temp_tick % self.ticks_per_beat;
-        TimeStamp { bar, beat, tick }
+        self.ticks_to_stamp(self.seconds_to_ticks(seconds))
     }
+}
 
-    pub fn add_duration_to_stamp(&self, time_stamp: TimeStamp, duration: Duration) -> TimeStamp {
-        let tick = (time_stamp.tick + duration.ticks) % self.ticks_per_beat;
-        let carry_beat = (time_stamp.tick + duration.ticks) / self.ticks_per_beat;
-        let beat = (time_stamp.beat + duration.beats + carry_beat) % self.beats_per_bar;
-        let carry_bar = (time_stamp.beat + duration.beats + carry_beat) / self.beats_per_bar;
-        let bar = time_stamp.bar + duration.bars + carry_bar;
-        TimeStamp { bar, beat, tick }
-    }
-
+impl TimeKeeper {
     pub fn zero(&self) -> TimeStamp {
         TimeStamp {
             bar: 0,
@@ -95,30 +81,23 @@ impl TimeKeeper {
             tick: 0,
         }
     }
+}
 
-    pub fn duration_to_seconds(&self, duration: Duration, start: TimeStamp) -> f64 {
-        duration.bars as f64 * self.beats_per_bar as f64 / self.bpm * 60.0
-            + duration.beats as f64 / self.bpm * 60.0
-            + duration.ticks as f64 / self.bpm * 60.0 / self.ticks_per_beat as f64
+impl TimeKeeper {
+    pub fn add_seconds_to_stamp(&self, time_stamp: TimeStamp, seconds: f64) -> TimeStamp {
+        self.seconds_to_stamp(seconds + self.stamp_to_seconds(time_stamp))
     }
 
-    fn seconds_to_ticks(&self, seconds: f64, start: TimeStamp) -> u16 {
-        let ticks_per_second = self.bpm / 60.0 * self.ticks_per_beat as f64;
-        (seconds * ticks_per_second) as u16
+    pub fn duration_to_seconds(&self, t0: TimeStamp, t1: TimeStamp) -> f64 {
+        self.stamp_to_seconds(t1) - self.stamp_to_seconds(t0)
     }
 
-    pub fn duration_from_seconds(&self, seconds: f64, start: TimeStamp) -> Duration {
-        let temp_ticks = self.seconds_to_ticks(seconds, start);
-        let bars = temp_ticks / (self.ticks_per_beat * self.beats_per_bar);
-        let beats = (temp_ticks / self.ticks_per_beat) % self.ticks_per_beat;
-        let ticks = temp_ticks % self.ticks_per_beat;
-        Duration { bars, beats, ticks }
+    pub fn duration_to_samples(&self, t0: TimeStamp, t1: TimeStamp) -> usize {
+        seconds_to_samples(self.duration_to_seconds(t0, t1))
     }
+}
 
-    pub fn duration_to_samples(&self, duration: Duration, start: TimeStamp) -> usize {
-        seconds_to_samples(self.duration_to_seconds(duration, start))
-    }
-
+impl TimeKeeper {
     pub fn get_stamp_vec(&self, onset: TimeStamp, samples: usize) -> Vec<TimeStamp> {
         let mut out = Vec::new();
         for i in 0..samples {
@@ -157,11 +136,4 @@ impl TimeStamp {
             tick: 0,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct Duration {
-    bars: u16,
-    beats: u16,
-    ticks: u16,
 }

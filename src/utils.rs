@@ -1,4 +1,6 @@
 use crate::consts::SAMPLE_RATE;
+pub mod oscs;
+pub mod envelope;
 
 #[inline(always)]
 pub fn seconds_to_samples(seconds: f64) -> usize {

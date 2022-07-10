@@ -1,7 +1,8 @@
 use crate::consts::SAMPLE_RATE;
 use crate::effects;
-use crate::song;
+use crate::instruments;
 use crate::time;
+use crate::tracks;
 use crate::utils;
 use crate::wave;
 use midly;
@@ -29,13 +30,13 @@ pub fn easy_save<W: wave::Wave>(track: W, path: &Path) {
 
 pub fn read_midi_file<W: 'static + wave::Wave>(
     path: &Path,
-) -> Result<song::Song<W>, Box<dyn Error>> {
+) -> Result<crate::Song<W>, Box<dyn Error>> {
     let bytes = std::fs::read(path)?;
     let name = utils::user_input("What's the name of the song?");
-    let mut song = song::Song::new(name);
+    let mut song = crate::Song::new(name);
     let smf = midly::Smf::parse(&bytes)?;
     let header = smf.header;
-    let mut time_keeper = Rc::new(time::TimeKeeper::default());
+    let time_keeper = Rc::new(parse_smf_for_time(&smf));
     match header.timing {
         // midly::Timing::Metrical(value) => time_keeper.set_ticks_per_beat(value.as_int()),
         midly::Timing::Timecode(_, _) => todo!(),
@@ -44,13 +45,13 @@ pub fn read_midi_file<W: 'static + wave::Wave>(
     let tracks = smf.tracks;
 
     for track in tracks {
-        song.add_track(parse_midi_track::<W>(track, Rc::clone(&time_keeper)));
+        song.add_midi_track(parse_midi_track::<W>(track, Rc::clone(&time_keeper)));
     }
 
     Ok(song)
 }
 
-fn parse_smf_for_time(smf: &midly::Smf) -> Rc<time::TimeKeeper> {
+fn parse_smf_for_time(smf: &midly::Smf) -> time::TimeKeeper {
     let ticks_per_beat = match smf.header.timing {
         midly::Timing::Metrical(val) => val.as_int(),
         midly::Timing::Timecode(_, _) => todo!(),
@@ -70,6 +71,7 @@ fn parse_smf_for_time(smf: &midly::Smf) -> Rc<time::TimeKeeper> {
                     TimeSignature(num, denom, clock_click, perquater) => {
                         beats_per_bar = num as u16;
                         beat_value = denom as u16;
+                        println!("{}, {}, {}, {}", num, denom, clock_click, perquater)
                     }
                     _ => (),
                 }
@@ -77,18 +79,18 @@ fn parse_smf_for_time(smf: &midly::Smf) -> Rc<time::TimeKeeper> {
         }
     }
 
-    Rc::new(time::TimeKeeper {
+    time::TimeKeeper {
         ticks_per_beat,
         beats_per_bar,
         beat_value,
-        bpm,
-    })
+        bps: bpm,
+    }
 }
 
 fn parse_midi_track<W: 'static + wave::Wave>(
     track: Vec<midly::TrackEvent>,
     time_keeper: Rc<time::TimeKeeper>,
-) -> song::Track<W> {
+) -> tracks::MidiTrack<W> {
     let mut track_name = String::new();
     let mut track_number = 0;
     let mut current_ticks: u64 = 0;
@@ -125,11 +127,11 @@ fn parse_midi_track<W: 'static + wave::Wave>(
             midly::TrackEventKind::Escape(_) => todo!(),
         }
     }
-    song::Track {
+    tracks::MidiTrack {
         name: track_name,
-        instrument: Box::new(song::Empty::new()),
+        instrument: Box::new(instruments::EmptyInstrument::new()),
         gain: 1.0,
-        effects: effects::EffectNode::End,
+        effects: effects::EffectNode::Bypass,
         notes: Vec::new(),
         time_keeper: Rc::clone(&time_keeper),
     }

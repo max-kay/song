@@ -1,4 +1,5 @@
-use std::{f64::consts::{PI, TAU}, marker::PhantomData};
+use std::f64::consts::{PI, TAU};
+use std::marker::PhantomData;
 
 use crate::{auto::ValOrVec, consts::SAMPLE_RATE, wave::Wave};
 
@@ -64,7 +65,7 @@ pub trait Oscillator<W: Wave> {
 
 pub struct Sine<W>(f64, PhantomData<W>);
 
-impl<W:Wave> Oscillator<W> for Sine<W> {
+impl<W: Wave> Oscillator<W> for Sine<W> {
     #[inline(always)]
     fn get_sample(&self, phase: f64, _modulation: f64) -> f64 {
         phase.sin() * self.0
@@ -73,7 +74,7 @@ impl<W:Wave> Oscillator<W> for Sine<W> {
 
 pub struct ModSquare<W>(f64, PhantomData<W>);
 
-impl<W:Wave> Oscillator<W> for ModSquare<W> {
+impl<W: Wave> Oscillator<W> for ModSquare<W> {
     #[inline(always)]
     fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
         if phase < modulation * TAU {
@@ -86,7 +87,7 @@ impl<W:Wave> Oscillator<W> for ModSquare<W> {
 
 pub struct ModSaw<W>(f64, PhantomData<W>);
 
-impl<W:Wave> Oscillator<W> for ModSaw<W> {
+impl<W: Wave> Oscillator<W> for ModSaw<W> {
     #[inline(always)]
     fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
         if phase < modulation * TAU {

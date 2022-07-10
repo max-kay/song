@@ -1,6 +1,6 @@
+use crate::time;
+use crate::utils;
 use std::rc::Rc;
-
-use crate::{time, utils};
 
 pub trait TimeFunction {
     fn get_value(&self, time: time::TimeStamp) -> f64;
@@ -140,17 +140,11 @@ impl PointDefined {
         }
         let val1 = p1.get_value();
         let val2 = p2.get_value();
-        let tot_secs = self.time_keeper.duration_to_seconds(
-            self.time_keeper
-                .duration_from_stamps(p1.get_time(), p2.get_time()),
-            p1.get_time(),
-        );
-        let part_secs = self.time_keeper.duration_to_seconds(
-            self.time_keeper
-                .duration_from_stamps(p1.get_time(), time),
-            p1.get_time(),
-        );
-        (val1, val2, part_secs/tot_secs)
+        let tot_secs = self
+            .time_keeper
+            .duration_to_seconds(p1.get_time(), p2.get_time());
+        let part_secs = self.time_keeper.duration_to_seconds(p1.get_time(), time);
+        (val1, val2, part_secs / tot_secs)
     }
 
     pub fn one_point(val: f64, time_keeper: Rc<time::TimeKeeper>) -> Self {

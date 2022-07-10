@@ -28,8 +28,8 @@ pub struct Mono {
     wave: Vec<f64>,
 }
 
-impl Mono{
-    pub fn get_vec(&self)-> Vec<f64>{
+impl Mono {
+    pub fn get_vec(&self) -> Vec<f64> {
         self.wave.clone()
     }
 }

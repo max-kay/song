@@ -1,4 +1,5 @@
-use crate::{consts::SAMPLE_RATE, utils::seconds_to_samples};
+use crate::consts::SAMPLE_RATE;
+use crate::utils::seconds_to_samples;
 
 pub enum Envelope {
     Decay {
