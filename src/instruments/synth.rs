@@ -1,5 +1,6 @@
 use super::MidiInstrument;
 use crate::auto;
+use crate::auto::CtrlFunction;
 use crate::auto::CtrlVal;
 use crate::effects;
 use crate::io;
@@ -7,16 +8,17 @@ use crate::time;
 use crate::time::TimeKeeper;
 use crate::time::TimeManager;
 use crate::tracks::midi;
-use crate::utils::envelope;
+use crate::auto::envelope;
 use crate::utils::oscs;
 use crate::wave;
 use crate::wave::Wave;
+use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
 pub struct SynthAutomation {
-    main_envelope: envelope::Envelope,
-    alt_envelope: envelope::Envelope,
+    main_envelope: Box<dyn envelope::Envelope>,
+    alt_envelope: Box<dyn envelope::Envelope>,
     current_velocity: auto::Constant,
     lfo1: auto::Lfo,
     lfo2: auto::Lfo,
@@ -25,24 +27,29 @@ pub struct SynthAutomation {
 }
 
 impl SynthAutomation {
-    fn empty(time_manager: Rc<time::TimeManager>) -> Self {
+    fn new() -> Self {
         Self {
-            main_envelope: envelope::Envelope::default(),
-            alt_envelope: envelope::Envelope::default(),
+            main_envelope: Box::new(envelope::Adsr::default()),
+            alt_envelope: Box::new(envelope::Adsr::default()),
             current_velocity: auto::Constant::default(),
             lfo1: auto::Lfo::default(),
             lfo2: auto::Lfo::default(),
             track_automation: Rc::new(auto::AutomationManager::new()),
-            time_manager,
+            time_manager: Rc::new(TimeManager::default()),
         }
-    }
-
-    pub fn get_main_envelope(&self, sus_samples: usize) -> Vec<f64> {
-        self.main_envelope.get_envelope(sus_samples)
     }
 
     pub fn set_track_automation(&mut self, automation: &Rc<auto::AutomationManager>) {
         self.track_automation = Rc::clone(automation)
+    }
+}
+
+impl SynthAutomation{
+    pub fn set_velocity(&mut self, velocity: CtrlVal){
+        self.current_velocity = auto::Constant(velocity);
+    }
+    pub fn get_main_envelope(&self, sus_samples: usize) -> Vec<f64> {
+        self.main_envelope.get_envelope(sus_samples)
     }
 }
 
@@ -59,22 +66,22 @@ pub struct Synthesizer<'a, W: Wave> {
     effects: effects::EffectNode<W>,
     effect_ctrl: effects::CtrlPanel<'a>,
     oscillators: Vec<Box<dyn oscs::Oscillator>>,
-    local_automation: SynthAutomation,
+    local_automation: Rc<RefCell<SynthAutomation>>,
     pitch_control: auto::Control,
     modulation_control: auto::Control,
     time_manager: Rc<time::TimeManager>,
     pitch_wheel_range: f64, // in cents
 }
 
-impl<'a, W: Wave> Synthesizer<'a, W> {
+impl<W: Wave> Synthesizer<'_, W> {
     pub fn new(name: String, oscillators: Vec<Box<dyn oscs::Oscillator>>) -> Self {
         Self {
             name,
             effects: effects::EffectNode::Bypass,
             effect_ctrl: effects::CtrlPanel::Bypass,
-            local_automation: SynthAutomation::empty(Rc::new(time::TimeManager::default())),
-            pitch_control: auto::Control::from_values(auto::CtrlVal::from_num(0.5_f32), 1.0),
-            modulation_control: auto::Control::from_values(auto::CtrlVal::from_num(0_f32), 1.0),
+            local_automation: Rc::new(RefCell::new(SynthAutomation::new())),
+            pitch_control: auto::Control::from_values(0.5_f64, 1.0),
+            modulation_control: auto::Control::from_values(0_f64, 1.0),
             oscillators,
             pitch_wheel_range: 2.0,
             time_manager: Rc::new(time::TimeManager::default()),
@@ -83,13 +90,23 @@ impl<'a, W: Wave> Synthesizer<'a, W> {
 
     pub fn set_time_manager(&mut self, time_manager: &Rc<time::TimeManager>) {
         self.time_manager = Rc::clone(time_manager);
-        self.local_automation.set_time_manager(time_manager)
+        self.local_automation.borrow_mut().set_time_manager(time_manager)
     }
 }
 
-impl<'a, W: Wave> Synthesizer<'a, W> {
+impl<W: wave::Wave> time::TimeKeeper for Synthesizer<'_, W> {
+    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
+        self.effects.set_time_manager(time_manager);
+        self.effect_ctrl.set_time_manager(time_manager);
+        self.local_automation.borrow_mut().set_time_manager(time_manager);
+        self.pitch_control.set_time_manager(time_manager);
+        self.modulation_control.set_time_manager(time_manager)
+    }
+}
+
+impl<W: Wave> Synthesizer<'_, W> {
     fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {
-        self.local_automation.get_main_envelope(sus_samples)
+        self.local_automation.borrow().get_main_envelope(sus_samples)
     }
     fn play_freq(
         &self,
@@ -98,7 +115,7 @@ impl<'a, W: Wave> Synthesizer<'a, W> {
         freq: f64,
         velocity: auto::CtrlVal,
     ) -> W {
-        let velocity = auto::Constant(velocity);
+        self.local_automation.borrow_mut().set_velocity(velocity);
         let sus_samples = self.time_manager.duration_to_samples(note_on, note_off);
         let envelope = self.get_envelope(sus_samples);
         let freq: Vec<f64> = self
@@ -118,17 +135,10 @@ impl<'a, W: Wave> Synthesizer<'a, W> {
     }
 }
 
-impl<W: wave::Wave> time::TimeKeeper for Synthesizer<'_, W> {
-    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
-        self.effects.set_time_manager(time_manager);
-        self.effect_ctrl.set_time_manager(time_manager);
-        self.local_automation.set_time_manager(time_manager);
-        self.pitch_control.set_time_manager(time_manager);
-        self.modulation_control.set_time_manager(time_manager)
-    }
-}
 
-impl<'a, W: Wave> MidiInstrument<W> for Synthesizer<'a, W> {
+
+
+impl<W: Wave> MidiInstrument<W> for Synthesizer<'_, W> {
     fn play_note(&self, note: midi::Note) -> W {
         self.play_freq(note.on, note.off, note.pitch.get_freq(), note.velocity)
     }
@@ -145,25 +155,31 @@ impl<'a, W: Wave> MidiInstrument<W> for Synthesizer<'a, W> {
     }
 
     fn set_track_automation(&mut self, automation: &Rc<auto::AutomationManager>) {
-        self.local_automation.set_track_automation(automation)
+        self.local_automation.borrow_mut().set_track_automation(automation)
     }
 }
+
+// impl<W: wave::Wave> Synthesizer<'_, W>{
+//     pub fn get_main_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>>{
+//         self.local_automation.borrow().main_envelope
+//     }
+// }
 
 impl<'a, W: Wave> Synthesizer<'a, W> {
     pub fn play_test_chord(&self) -> W {
         let note_on = self.time_manager.zero();
         let note_off = self.time_manager.seconds_to_stamp(2.0);
-        let mut out = self.play_freq(note_on, note_off, 300.0, CtrlVal::from_num(0.7_f64));
+        let mut out = self.play_freq(note_on, note_off, 300.0, 0.7);
         out.add_consuming(
-            self.play_freq(note_on, note_off, 375.0, CtrlVal::from_num(0.7_f64)),
+            self.play_freq(note_on, note_off, 375.0, 0.7),
             0,
         );
         out.add_consuming(
-            self.play_freq(note_on, note_off, 450.0, CtrlVal::from_num(0.7_f64)),
+            self.play_freq(note_on, note_off, 450.0, 0.7),
             0,
         );
         out.add_consuming(
-            self.play_freq(note_on, note_off, 600.0, CtrlVal::from_num(0.7_f64)),
+            self.play_freq(note_on, note_off, 600.0, 0.7),
             0,
         );
         out

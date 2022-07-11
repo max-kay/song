@@ -57,11 +57,11 @@ impl<W: wave::Wave> Effect<W> for Delay<W> {
         HashMap::from([
             (
                 "gain",
-                Control::from_values(auto::CtrlVal::from_num(0.7), 1.0),
+                Control::from_values(0.7, 1.0),
             ),
             (
                 "delta_t",
-                Control::from_values(auto::CtrlVal::from_num(0.1), 1.0),
+                Control::from_values(0.1, 1.0),
             ),
         ])
     }

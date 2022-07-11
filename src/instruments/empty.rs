@@ -20,7 +20,7 @@ impl<W: wave::Wave> Default for EmptyInstrument<W> {
 }
 
 impl<W: wave::Wave> time::TimeKeeper for EmptyInstrument<W> {
-    fn set_time_manager(&mut self, time_manager: &Rc<time::TimeManager>) {}
+    fn set_time_manager(&mut self, _time_manager: &Rc<time::TimeManager>) {}
 }
 
 impl<W: wave::Wave> MidiInstrument<W> for EmptyInstrument<W> {

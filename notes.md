@@ -2,6 +2,7 @@
 - think about loudness and values in dB
 - better sustain decay
 - think about lifetimes of tracks
+- rethink envelope
 
 
 

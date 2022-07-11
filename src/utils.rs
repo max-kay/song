@@ -1,5 +1,4 @@
 use crate::consts::SAMPLE_RATE;
-pub mod envelope;
 pub mod oscs;
 use crate::auto::CtrlVal;
 

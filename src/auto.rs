@@ -1,17 +1,20 @@
 use crate::consts::SAMPLE_RATE;
 use crate::time;
-use crate::time::TimeManager;
+use crate::time::{TimeKeeper, TimeManager};
 use crate::utils;
 use crate::utils::oscs;
 use fixed;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 use std::rc::Rc;
 use std::vec;
 
-pub type CtrlVal = fixed::types::I0F16;
+pub mod envelope;
 
-pub trait TimeFunction: time::TimeKeeper {
+pub type CtrlVal = f64;
+
+pub trait CtrlFunction: TimeKeeper {
     fn get_value(&self, time: time::TimeStamp) -> CtrlVal;
     fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<CtrlVal>;
     fn trigger(&self, samples: usize) -> Vec<CtrlVal>;
@@ -20,7 +23,7 @@ pub trait TimeFunction: time::TimeKeeper {
 pub struct Control {
     pub value: CtrlVal,
     pub prescalar: f64,
-    pub connection: Option<Rc<Box<dyn TimeFunction>>>,
+    pub connection: Option<Rc<RefCell<dyn CtrlFunction>>>,
 }
 
 impl Control {
@@ -34,28 +37,48 @@ impl Control {
 
     pub fn get_value(&self, time: time::TimeStamp) -> f64 {
         let val: f64 = match &self.connection {
-            Some(time_function) => time_function.get_value(time),
+            Some(time_function) => time_function.borrow().get_value(time),
+            None => self.value,
+        };
+        val * self.prescalar
+    }
+
+    pub fn get_raw_value(&self, time: time::TimeStamp) -> CtrlVal {
+        match &self.connection {
+            Some(time_function) => time_function.borrow().get_value(time),
             None => self.value,
         }
-        .to_num();
-        val * self.prescalar
     }
 
     pub fn get_vec(&self, time: time::TimeStamp, samples: usize) -> Vec<f64> {
         match &self.connection {
             Some(time_function) => time_function
+                .borrow()
                 .get_vec(time, samples)
                 .into_iter()
-                .map(|x| x.to_num::<f64>() * self.prescalar)
+                .map(|x| x * self.prescalar)
                 .collect(),
-            None => vec![self.value.to_num::<f64>() * self.prescalar; samples],
+            None => vec![self.value * self.prescalar; samples],
+        }
+    }
+
+    pub fn get_raw_vec(&self, time: time::TimeStamp, samples: usize) -> Vec<CtrlVal> {
+        match &self.connection {
+            Some(time_function) => time_function
+                .borrow()
+                .get_vec(time, samples)
+                .into_iter()
+                .collect(),
+            None => vec![self.value; samples],
         }
     }
 }
 
 impl time::TimeKeeper for Control {
     fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
-        todo!()
+        if let Some(time_function) = &self.connection {
+            time_function.borrow_mut().set_time_manager(time_manager)
+        }
     }
 }
 
@@ -162,7 +185,7 @@ impl PointDefined {
             .time_manager
             .duration_to_seconds(p1.get_time(), p2.get_time());
         let part_secs = self.time_manager.duration_to_seconds(p1.get_time(), time);
-        (val1, val2, CtrlVal::from_num(part_secs / tot_secs))
+        (val1, val2, part_secs / tot_secs)
     }
 
     pub fn one_point(val: CtrlVal, time_manager: Rc<time::TimeManager>) -> Self {
@@ -180,7 +203,7 @@ impl time::TimeKeeper for PointDefined {
     }
 }
 
-impl TimeFunction for PointDefined {
+impl CtrlFunction for PointDefined {
     fn get_value(&self, time: time::TimeStamp) -> CtrlVal {
         let (val1, val2, progress) = self.find_around(time);
         self.interpolation.interpolate(val1, val2, progress)
@@ -212,8 +235,8 @@ impl Lfo {
     pub fn new() -> Self {
         Self {
             oscillator: Box::new(oscs::ModSaw::new(1.0)),
-            freq: Control::from_values(CtrlVal::from_num(1_f64), 1.0),
-            modulation: Control::from_values(CtrlVal::from_num(1_f64), 1.0),
+            freq: Control::from_values(1_f64, 1.0),
+            modulation: Control::from_values(1_f64, 1.0),
             phase_shift: 0.0,
             time_manager: Rc::new(time::TimeManager::default()),
         }
@@ -232,16 +255,14 @@ impl Default for Lfo {
     }
 }
 
-impl TimeFunction for Lfo {
+impl CtrlFunction for Lfo {
     fn get_value(&self, time: time::TimeStamp) -> CtrlVal {
         let phase = ((self.time_manager.stamp_to_seconds(time) * TAU * self.freq.get_value(time)
             / (SAMPLE_RATE as f64))
             + self.phase_shift)
             % TAU;
-        CtrlVal::from_num(
-            self.oscillator
-                .get_sample(phase, self.modulation.get_value(time)),
-        )
+        self.oscillator
+            .get_sample(phase, self.modulation.get_value(time))
     }
 
     fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<CtrlVal> {
@@ -253,7 +274,6 @@ impl TimeFunction for Lfo {
                 self.phase_shift,
             )
             .into_iter()
-            .map(CtrlVal::from_num)
             .collect()
     }
 
@@ -269,7 +289,7 @@ impl time::TimeKeeper for Constant {
     fn set_time_manager(&mut self, _time_manager: &Rc<TimeManager>) {}
 }
 
-impl TimeFunction for Constant {
+impl CtrlFunction for Constant {
     fn get_value(&self, _time: time::TimeStamp) -> CtrlVal {
         self.0
     }
@@ -283,7 +303,7 @@ impl TimeFunction for Constant {
     }
 }
 
-pub struct Composed(Vec<Box<dyn TimeFunction>>);
+pub struct Composed(Vec<Control>);
 
 impl time::TimeKeeper for Composed {
     fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
@@ -293,21 +313,21 @@ impl time::TimeKeeper for Composed {
     }
 }
 
-impl TimeFunction for Composed {
+impl CtrlFunction for Composed {
     fn get_value(&self, time: time::TimeStamp) -> CtrlVal {
-        let mut val = CtrlVal::from_num(1_f32);
-        for time_function in &self.0 {
-            val *= time_function.get_value(time)
+        let mut val = 1_f64;
+        for control in &self.0 {
+            val *= control.get_raw_value(time)
         }
         val
     }
 
     fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<CtrlVal> {
-        let mut vec = vec![CtrlVal::from_num(1_f32); samples];
-        for time_function in &self.0 {
+        let mut vec = vec![1_f64; samples];
+        for control in &self.0 {
             vec = vec
                 .into_iter()
-                .zip(time_function.get_vec(start, samples).into_iter())
+                .zip(control.get_raw_vec(start, samples).into_iter())
                 .map(|(x1, x2)| x1 * x2)
                 .collect();
         }
@@ -320,7 +340,7 @@ impl TimeFunction for Composed {
 }
 
 pub struct AutomationManager {
-    channels: HashMap<u8, Rc<Box<dyn TimeFunction>>>,
+    channels: HashMap<u8, Rc<Box<dyn CtrlFunction>>>,
 }
 
 impl AutomationManager {
@@ -334,7 +354,7 @@ impl AutomationManager {
         self.channels.keys().into_iter().copied().collect()
     }
 
-    pub fn get_channel(&self, channel: u8) -> Option<Rc<Box<dyn TimeFunction>>> {
+    pub fn get_channel(&self, channel: u8) -> Option<Rc<Box<dyn CtrlFunction>>> {
         self.channels.get(&channel).map(Rc::clone)
     }
 }
