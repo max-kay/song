@@ -35,7 +35,7 @@ impl Default for Lfo {
 }
 
 impl super::CtrlFunction for Lfo {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+    fn get_value(&self, time: time::TimeStamp) -> f64 {
         let phase =
             ((self.time_manager.borrow().stamp_to_seconds(time) * TAU * self.freq.get_value(time)
                 / (SAMPLE_RATE as f64))
@@ -45,7 +45,7 @@ impl super::CtrlFunction for Lfo {
             .get_sample(phase, self.modulation.get_value(time))
     }
 
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64> {
         self.oscillator
             .play_shifted(
                 &self.freq.get_vec(start, samples),
@@ -57,7 +57,7 @@ impl super::CtrlFunction for Lfo {
             .collect()
     }
 
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+    fn trigger(&self, samples: usize) -> Vec<f64> {
         self.get_vec(time::TimeStamp::zero(), samples)
     }
 }

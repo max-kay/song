@@ -36,7 +36,7 @@ pub struct Note {
     pub pitch: Pitch,
     pub on: time::TimeStamp,
     pub off: time::TimeStamp,
-    pub velocity: auto::CtrlVal,
+    pub velocity: f64,
 }
 
 #[derive(Debug)]

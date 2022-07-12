@@ -3,19 +3,19 @@ use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
-    value: super::CtrlVal,
+    value: f64,
     time: time::TimeStamp,
 }
 
 impl AutomationPoint {
-    pub fn new(value: super::CtrlVal, time: time::TimeStamp) -> Self {
+    pub fn new(value: f64, time: time::TimeStamp) -> Self {
         assert!(
             (0.0..=1.0).contains(&value),
             "the value of an AutomationPoint has to in [0.0, 1.0] (closed interval)"
         );
         Self { value, time }
     }
-    pub fn get_value(&self) -> super::CtrlVal {
+    pub fn get_value(&self) -> f64 {
         self.value
     }
     pub fn get_time(&self) -> time::TimeStamp {
@@ -64,12 +64,7 @@ pub enum Interpolation {
 }
 
 impl Interpolation {
-    pub fn interpolate(
-        &self,
-        val1: super::CtrlVal,
-        val2: super::CtrlVal,
-        progress: super::CtrlVal,
-    ) -> super::CtrlVal {
+    pub fn interpolate(&self, val1: f64, val2: f64, progress: f64) -> f64 {
         match self {
             Interpolation::Linear => (val2 - val1) * progress + val1,
             Interpolation::Smooth => (val2 - val1) * utils::smooth_step(progress) + val1,
@@ -95,10 +90,7 @@ impl PointDefined {
         }
     }
 
-    fn find_around(
-        &self,
-        time: time::TimeStamp,
-    ) -> (super::CtrlVal, super::CtrlVal, super::CtrlVal) {
+    fn find_around(&self, time: time::TimeStamp) -> (f64, f64, f64) {
         let mut p1 = AutomationPoint::default();
         let mut p2 = AutomationPoint::default();
         for (i, p) in self.points.iter().enumerate() {
@@ -121,7 +113,7 @@ impl PointDefined {
         (val1, val2, part_secs / tot_secs)
     }
 
-    pub fn one_point(val: super::CtrlVal, time_manager: Rc<RefCell<time::TimeManager>>) -> Self {
+    pub fn one_point(val: f64, time_manager: Rc<RefCell<time::TimeManager>>) -> Self {
         Self {
             points: vec![AutomationPoint::new(val, time::TimeStamp::zero())],
             interpolation: Interpolation::Linear,
@@ -137,12 +129,12 @@ impl time::TimeKeeper for PointDefined {
 }
 
 impl super::CtrlFunction for PointDefined {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+    fn get_value(&self, time: time::TimeStamp) -> f64 {
         let (val1, val2, progress) = self.find_around(time);
         self.interpolation.interpolate(val1, val2, progress)
     }
 
-    fn get_vec(&self, onset: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+    fn get_vec(&self, onset: time::TimeStamp, samples: usize) -> Vec<f64> {
         let time_stamps = self.time_manager.borrow().get_stamp_vec(onset, samples);
         let mut out = Vec::with_capacity(samples);
         for t in time_stamps {
@@ -151,7 +143,7 @@ impl super::CtrlFunction for PointDefined {
         out
     }
 
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+    fn trigger(&self, samples: usize) -> Vec<f64> {
         self.get_vec(self.time_manager.borrow().zero(), samples)
     }
 }

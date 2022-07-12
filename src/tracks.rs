@@ -19,7 +19,7 @@ impl<W: wave::Wave> time::TimeKeeper for Track<'_, W> {
 }
 
 impl<W: wave::Wave> Track<'_, W> {
-    fn set_automation_manager(&mut self) {
+    pub fn set_automation_manager(&mut self) {
         match self {
             Track::Midi(track) => track.set_automation_manager(),
         }

@@ -1,4 +1,4 @@
-use crate::{auto::CtrlVal, consts::SAMPLE_RATE};
+use crate::{consts::SAMPLE_RATE};
 
 pub mod oscs;
 
@@ -13,7 +13,7 @@ pub fn samples_to_seconds(samples: usize) -> f64 {
 }
 
 #[inline(always)]
-pub fn smooth_step(x: CtrlVal) -> CtrlVal {
+pub fn smooth_step(x: f64) -> f64 {
     3.0 * x * x - 2.0 * x * x * x
 }
 

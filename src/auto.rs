@@ -13,24 +13,24 @@ pub use envelope::{Ad, Adsr, AdsrDecayed, Decay, Envelope};
 pub use lfo::Lfo;
 pub use point_defined::PointDefined;
 
-pub type CtrlVal = f64;
+
 
 
 pub trait CtrlFunction: TimeKeeper + Debug {
-    fn get_value(&self, time: time::TimeStamp) -> CtrlVal;
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<CtrlVal>;
-    fn trigger(&self, samples: usize) -> Vec<CtrlVal>;
+    fn get_value(&self, time: time::TimeStamp) -> f64;
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64>;
+    fn trigger(&self, samples: usize) -> Vec<f64>;
 }
 
 #[derive(Debug)]
 pub struct Control {
-    value: CtrlVal,
+    value: f64,
     prescalar: f64,
     connection: Option<Rc<RefCell<dyn CtrlFunction>>>,
 }
 
 impl Control {
-    pub fn new(value: CtrlVal, prescalar: f64, connection: Rc<RefCell<dyn CtrlFunction>>) -> Self {
+    pub fn new(value: f64, prescalar: f64, connection: Rc<RefCell<dyn CtrlFunction>>) -> Self {
         Self {
             value,
             prescalar,
@@ -38,7 +38,7 @@ impl Control {
         }
     }
 
-    pub fn from_values(value: CtrlVal, prescalar: f64) -> Self {
+    pub fn from_values(value: f64, prescalar: f64) -> Self {
         Self {
             value,
             prescalar,

@@ -1,6 +1,6 @@
 use super::MidiInstrument;
 use crate::{
-    auto::{self, AutomationManager, CtrlFunction, CtrlVal},
+    auto::{self, AutomationManager, CtrlFunction},
     effects, io,
     time::{self, TimeKeeper},
     tracks::midi,
@@ -35,7 +35,7 @@ impl SynthAutomation {
 }
 
 impl SynthAutomation {
-    pub fn set_velocity(&mut self, velocity: CtrlVal) {
+    pub fn set_velocity(&mut self, velocity: f64) {
         (*self.current_velocity).borrow_mut().set(velocity)
     }
 }
@@ -115,7 +115,7 @@ impl<W: Wave> Synthesizer<'_, W> {
         note_on: time::TimeStamp,
         note_off: time::TimeStamp,
         freq: f64,
-        velocity: auto::CtrlVal,
+        velocity: f64,
     ) -> W {
         (*self.local_automation).borrow_mut().set_velocity(velocity);
         let sus_samples = self

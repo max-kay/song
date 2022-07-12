@@ -13,7 +13,7 @@ impl time::TimeKeeper for Composed {
 }
 
 impl super::CtrlFunction for Composed {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+    fn get_value(&self, time: time::TimeStamp) -> f64 {
         let mut val = 1_f64;
         for control in &self.0 {
             val *= control.get_value(time)
@@ -21,7 +21,7 @@ impl super::CtrlFunction for Composed {
         val
     }
 
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64> {
         let mut vec = vec![1_f64; samples];
         for control in &self.0 {
             vec = vec
@@ -33,7 +33,7 @@ impl super::CtrlFunction for Composed {
         vec
     }
 
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+    fn trigger(&self, samples: usize) -> Vec<f64> {
         self.get_vec(time::TimeStamp::zero(), samples)
     }
 }

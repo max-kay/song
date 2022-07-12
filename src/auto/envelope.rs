@@ -34,15 +34,15 @@ impl time::TimeKeeper for Decay {
 }
 
 impl super::CtrlFunction for Decay {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+    fn get_value(&self, time: time::TimeStamp) -> f64 {
         todo!()
     }
 
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64> {
         todo!()
     }
 
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+    fn trigger(&self, samples: usize) -> Vec<f64> {
         todo!()
     }
 }
@@ -97,15 +97,15 @@ impl time::TimeKeeper for Ad {
 }
 
 impl super::CtrlFunction for Ad {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+    fn get_value(&self, time: time::TimeStamp) -> f64 {
         todo!()
     }
 
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64> {
         todo!()
     }
 
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+    fn trigger(&self, samples: usize) -> Vec<f64> {
         todo!()
     }
 }
@@ -169,15 +169,15 @@ impl time::TimeKeeper for Adsr {
 }
 
 impl super::CtrlFunction for Adsr {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+    fn get_value(&self, time: time::TimeStamp) -> f64 {
         todo!()
     }
 
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64> {
         todo!()
     }
 
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+    fn trigger(&self, samples: usize) -> Vec<f64> {
         todo!()
     }
 }
@@ -257,15 +257,15 @@ impl time::TimeKeeper for AdsrDecayed {
 }
 
 impl super::CtrlFunction for AdsrDecayed {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+    fn get_value(&self, time: time::TimeStamp) -> f64 {
         todo!()
     }
 
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64> {
         todo!()
     }
 
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+    fn trigger(&self, samples: usize) -> Vec<f64> {
         todo!()
     }
 }
