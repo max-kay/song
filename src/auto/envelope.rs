@@ -6,6 +6,7 @@ pub trait Envelope: CtrlFunction  {
     fn get_envelope(&self, sus_samples: usize) -> Vec<f64>;
 }
 
+#[derive(Debug)]
 pub struct Decay {
     decay: f64,
     time_manager: Rc<RefCell<time::TimeManager>>,
@@ -64,6 +65,7 @@ impl Envelope for Decay {
     }
 }
 
+#[derive(Debug)]
 pub struct Ad {
     attack: f64,
     decay: f64,
@@ -130,6 +132,7 @@ impl Envelope for Ad {
     }
 }
 
+#[derive(Debug)]
 pub struct Adsr {
     attack: f64,
     decay: f64,
@@ -214,6 +217,7 @@ impl Envelope for Adsr {
     }
 }
 
+#[derive(Debug)]
 pub struct AdsrDecayed {
     attack: f64,
     decay: f64,
@@ -266,13 +270,7 @@ impl super::CtrlFunction for AdsrDecayed {
     }
 }
 
-impl Deref for AdsrDecayed {
-    type Target = dyn CtrlFunction;
 
-    fn deref(&self) -> &Self::Target {
-        self
-    }
-}
 
 impl Envelope for AdsrDecayed {
     fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {

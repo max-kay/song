@@ -9,6 +9,7 @@ use crate::{
 };
 use std::{cell::RefCell, path::Path, rc::Rc};
 
+#[derive(Debug)]
 pub struct SynthAutomation {
     main_envelope: Rc<RefCell<dyn auto::Envelope>>,
     alt_envelope: Rc<RefCell<dyn auto::Envelope>>,
@@ -63,6 +64,7 @@ impl auto::AutomationKeeper for SynthAutomation {
     }
 }
 
+#[derive(Debug)]
 pub struct Synthesizer<'a, W: Wave> {
     name: String,
     effects: effects::EffectNode<W>,
@@ -120,18 +122,21 @@ impl<W: Wave> Synthesizer<'_, W> {
             .time_manager
             .borrow()
             .duration_to_samples(note_on, note_off);
+
         let envelope = self
             .local_automation
             .borrow()
             .main_envelope
             .borrow()
             .get_envelope(sus_samples);
+
         let freq: Vec<f64> = self
             .pitch_control
             .get_vec(note_on, envelope.len())
             .into_iter()
             .map(|x| freq * 2_f64.powf((x * 2.0 - 1.0) * self.pitch_wheel_range / 1200.0))
             .collect();
+
         let modulation = self.modulation_control.get_vec(note_on, envelope.len());
         let mut wave = W::zeros(envelope.len());
         for osc in &self.oscillators {
@@ -169,11 +174,36 @@ impl<W: Wave> MidiInstrument<W> for Synthesizer<'_, W> {
     }
 }
 
-// impl<W: wave::Wave> Synthesizer<'_, W> {
-//     pub fn get_main_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-//         **self.local_automation.borrow().main_envelope.borrow()
-//     }
-// }
+impl<W: wave::Wave> Synthesizer<'_, W> {
+    // pub fn get_main_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+    //     todo!()
+    // }
+
+    // pub fn get_alt_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+    //     todo!()
+    // }
+
+    // pub fn get_current_velocity(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+    //     Rc::clone(&(self.local_automation.borrow().current_velocity))
+    // }
+
+    // pub fn get_lfo1(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+    //     Rc::clone(&(self.local_automation.borrow().lfo1 as Rc<RefCell<dyn CtrlFunction>>))
+    // }
+
+    // pub fn get_lfo2(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+    //     Rc::clone(&(self.local_automation.borrow().lfo2 as Rc<RefCell<dyn CtrlFunction>>))
+    // }
+
+    pub fn get_automation_channel(&self, channel: u8) -> Option<Rc<RefCell<dyn CtrlFunction>>> {
+        self
+            .local_automation
+            .borrow()
+            .track_automation
+            .borrow()
+            .get_channel(channel)
+    }
+}
 
 impl<'a, W: Wave> Synthesizer<'a, W> {
     pub fn play_test_chord(&self) -> W {

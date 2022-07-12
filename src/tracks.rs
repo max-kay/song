@@ -1,13 +1,11 @@
-use crate::{
-    auto::{self, AutomationKeeper},
-    instruments, time, wave,
-};
+use crate::{time, wave};
 use std::{cell::RefCell, rc::Rc};
 
 pub mod midi;
 
 pub use midi::MidiTrack;
 
+#[derive(Debug)]
 pub enum Track<'a, W: wave::Wave> {
     Midi(midi::MidiTrack<'a, W>),
 }
@@ -35,4 +33,3 @@ impl<W: wave::Wave + 'static> Track<'_, W> {
         }
     }
 }
-

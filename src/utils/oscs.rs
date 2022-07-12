@@ -1,7 +1,7 @@
 use crate::consts::SAMPLE_RATE;
-use std::f64::consts::{PI, TAU};
+use std::{f64::consts::{PI, TAU}, fmt::Debug};
 
-pub trait Oscillator {
+pub trait Oscillator: Debug {
     fn get_sample(&self, phase: f64, modulation: f64) -> f64;
 
     fn play(&self, freq: &Vec<f64>, modulation: &Vec<f64>, samples: usize) -> Vec<f64> {
@@ -27,6 +27,7 @@ pub trait Oscillator {
     }
 }
 
+#[derive(Debug)]
 pub struct Sine(f64);
 
 impl Oscillator for Sine {
@@ -41,6 +42,7 @@ impl Sine {
     }
 }
 
+#[derive(Debug)]
 pub struct ModSquare(f64);
 
 impl Oscillator for ModSquare {
@@ -59,6 +61,7 @@ impl ModSquare {
     }
 }
 
+#[derive(Debug)]
 pub struct ModSaw(f64);
 
 impl Oscillator for ModSaw {

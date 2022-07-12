@@ -1,6 +1,6 @@
-use std::iter::zip;
+use std::{iter::zip, fmt::Debug};
 
-pub trait Wave: Clone {
+pub trait Wave: Clone + Debug {
     fn new() -> Self;
     fn with_capacity(capacity: usize) -> Self;
     fn zeros(length: usize) -> Self;
@@ -23,7 +23,7 @@ pub trait Wave: Clone {
     fn normalize(&mut self);
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Mono {
     wave: Vec<f64>,
 }

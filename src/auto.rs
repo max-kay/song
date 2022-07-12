@@ -1,5 +1,5 @@
 use crate::time::{self, TimeKeeper};
-use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, vec, fmt::Debug};
 
 pub mod composed;
 pub mod constant;
@@ -15,23 +15,18 @@ pub use point_defined::PointDefined;
 
 pub type CtrlVal = f64;
 
-pub trait CtrlFunction: TimeKeeper {
+
+pub trait CtrlFunction: TimeKeeper + Debug {
     fn get_value(&self, time: time::TimeStamp) -> CtrlVal;
     fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<CtrlVal>;
     fn trigger(&self, samples: usize) -> Vec<CtrlVal>;
 }
 
-// #[rustfmt::skip]
-// impl<'a, T: 'a + CtrlFunction> IntoSuperTrait<Ref<'a, dyn CtrlFunction + 'a>> for Ref<'a, T> {
-//     fn as_super(&self) -> &Ref<'a, (dyn CtrlFunction + 'a)>{ todo!() }
-//     fn as_super_mut(&mut self) -> &mut Ref( (dyn CtrlFunction + 'a)) { todo!() }
-//     fn into_super(self: Box<Self>) -> Box<dyn CtrlFunction + 'a> { todo!() }
-// }
-
+#[derive(Debug)]
 pub struct Control {
-    pub value: CtrlVal,
-    pub prescalar: f64,
-    pub connection: Option<Rc<RefCell<dyn CtrlFunction>>>,
+    value: CtrlVal,
+    prescalar: f64,
+    connection: Option<Rc<RefCell<dyn CtrlFunction>>>,
 }
 
 impl Control {
@@ -84,6 +79,7 @@ pub trait AutomationKeeper {
     fn set_automation_manager(&mut self, automation_manager: Rc<RefCell<AutomationManager>>);
 }
 
+#[derive(Debug)]
 pub struct AutomationManager {
     channels: HashMap<u8, Rc<RefCell<dyn CtrlFunction>>>,
 }

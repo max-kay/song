@@ -2,6 +2,7 @@ use super::{Control, Effect};
 use crate::{time, utils::seconds_to_samples, wave};
 use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc, vec};
 
+#[derive(Debug)]
 pub struct Delay<W: wave::Wave> {
     phantom: PhantomData<W>,
     time_manager: Rc<RefCell<time::TimeManager>>,

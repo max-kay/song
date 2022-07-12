@@ -1,5 +1,5 @@
 use crate::{auto::Control, time, wave};
-use std::{cell::RefCell, collections::HashMap, fmt, iter::zip, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt::{self, Debug}, iter::zip, rc::Rc};
 
 pub mod delay;
 pub mod reverb;
@@ -16,6 +16,7 @@ impl fmt::Display for ControlError {
 
 impl std::error::Error for ControlError {}
 
+#[derive(Debug)]
 pub enum CtrlPanel<'a> {
     Map(HashMap<&'a str, Control>),
     Node(Vec<CtrlPanel<'a>>),
@@ -55,6 +56,7 @@ impl time::TimeKeeper for CtrlPanel<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum EffectNode<W: wave::Wave> {
     Effect(Box<dyn Effect<W>>),
     Node(Vec<EffectNode<W>>),
@@ -114,7 +116,7 @@ impl<W: wave::Wave> EffectNode<W> {
     }
 }
 
-pub trait Effect<W: wave::Wave>: time::TimeKeeper {
+pub trait Effect<W: wave::Wave>: time::TimeKeeper +  Debug {
     fn apply(
         &self,
         wave: &mut W,

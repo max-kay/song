@@ -1,3 +1,5 @@
+#![warn(missing_debug_implementations)]
+
 use std::{cell::RefCell, rc::Rc};
 use time::TimeKeeper;
 
@@ -11,6 +13,7 @@ pub mod tracks;
 pub mod utils;
 pub mod wave;
 
+#[derive(Debug)]
 pub struct Song<'a, W: wave::Wave> {
     name: String,
     tracks: Vec<tracks::Track<'a, W>>,

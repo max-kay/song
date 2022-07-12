@@ -1,7 +1,7 @@
 use crate::time;
 use std::{cell::RefCell, rc::Rc};
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Constant(pub super::CtrlVal);
 
 impl Constant {

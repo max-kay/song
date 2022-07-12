@@ -1,6 +1,7 @@
 use crate::{consts::SAMPLE_RATE, time, utils::oscs};
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
 
+#[derive(Debug)]
 pub struct Lfo {
     oscillator: Box<dyn oscs::Oscillator>,
     freq: super::Control,

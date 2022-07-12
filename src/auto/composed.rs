@@ -1,6 +1,7 @@
 use crate::time;
 use std::{cell::RefCell, rc::Rc};
 
+#[derive(Debug)]
 pub struct Composed(Vec<super::Control>);
 
 impl time::TimeKeeper for Composed {

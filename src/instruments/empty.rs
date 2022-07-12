@@ -2,6 +2,7 @@ use super::{midi, MidiInstrument};
 use crate::{auto, time, wave};
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
+#[derive(Debug)]
 pub struct EmptyInstrument<W: wave::Wave> {
     phantom: PhantomData<W>,
 }

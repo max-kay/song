@@ -5,7 +5,7 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Pitch {
     value: u8,
 }
@@ -31,7 +31,7 @@ impl Pitch {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Note {
     pub pitch: Pitch,
     pub on: time::TimeStamp,
@@ -39,6 +39,7 @@ pub struct Note {
     pub velocity: auto::CtrlVal,
 }
 
+#[derive(Debug)]
 pub struct MidiTrack<'a, W: wave::Wave> {
     pub name: String,
     pub instrument: Box<dyn instruments::MidiInstrument<W>>,

@@ -57,6 +57,7 @@ impl Ord for AutomationPoint {
     }
 }
 
+#[derive(Debug)]
 pub enum Interpolation {
     Linear,
     Smooth,
@@ -76,6 +77,7 @@ impl Interpolation {
     }
 }
 
+#[derive(Debug)]
 pub struct PointDefined {
     points: Vec<AutomationPoint>,
     interpolation: Interpolation,
