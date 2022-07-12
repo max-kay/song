@@ -14,7 +14,7 @@ impl time::TimeKeeper for Composed {
 
 impl super::CtrlFunction for Composed {
     fn get_value(&self, time: time::TimeStamp) -> f64 {
-        let mut val = 1_f64;
+        let mut val = 1.0;
         for control in &self.0 {
             val *= control.get_value(time)
         }

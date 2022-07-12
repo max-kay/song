@@ -1,4 +1,4 @@
-use std::{iter::zip, fmt::Debug};
+use std::{fmt::Debug, iter::zip};
 
 pub trait Wave: Clone + Debug {
     fn new() -> Self;

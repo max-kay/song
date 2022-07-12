@@ -1,5 +1,8 @@
 use crate::consts::SAMPLE_RATE;
-use std::{f64::consts::{PI, TAU}, fmt::Debug};
+use std::{
+    f64::consts::{PI, TAU},
+    fmt::Debug,
+};
 
 pub trait Oscillator: Debug {
     fn get_sample(&self, phase: f64, modulation: f64) -> f64;

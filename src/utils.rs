@@ -1,4 +1,4 @@
-use crate::{consts::SAMPLE_RATE};
+use crate::consts::SAMPLE_RATE;
 
 pub mod oscs;
 

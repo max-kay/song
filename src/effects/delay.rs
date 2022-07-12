@@ -51,8 +51,8 @@ impl<W: wave::Wave> Effect<W> for Delay<W> {
 
     fn default_controls(&self) -> std::collections::HashMap<&str, Control> {
         HashMap::from([
-            ("gain", Control::from_values(0.7, 1.0)),
-            ("delta_t", Control::from_values(0.1, 1.0)),
+            ("gain", Control::from_values(0.7, (0.0, 0.95))),
+            ("delta_t", Control::from_values(0.1, (0.001, 10.0))),
         ])
     }
 

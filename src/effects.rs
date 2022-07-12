@@ -1,5 +1,11 @@
 use crate::{auto::Control, time, wave};
-use std::{cell::RefCell, collections::HashMap, fmt::{self, Debug}, iter::zip, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt::{self, Debug},
+    iter::zip,
+    rc::Rc,
+};
 
 pub mod delay;
 pub mod reverb;
@@ -116,7 +122,7 @@ impl<W: wave::Wave> EffectNode<W> {
     }
 }
 
-pub trait Effect<W: wave::Wave>: time::TimeKeeper +  Debug {
+pub trait Effect<W: wave::Wave>: time::TimeKeeper + Debug {
     fn apply(
         &self,
         wave: &mut W,

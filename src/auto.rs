@@ -1,5 +1,5 @@
 use crate::time::{self, TimeKeeper};
-use std::{cell::RefCell, collections::HashMap, rc::Rc, vec, fmt::Debug};
+use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc, vec};
 
 pub mod composed;
 pub mod constant;
@@ -13,9 +13,6 @@ pub use envelope::{Ad, Adsr, AdsrDecayed, Decay, Envelope};
 pub use lfo::Lfo;
 pub use point_defined::PointDefined;
 
-
-
-
 pub trait CtrlFunction: TimeKeeper + Debug {
     fn get_value(&self, time: time::TimeStamp) -> f64;
     fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64>;
@@ -25,25 +22,41 @@ pub trait CtrlFunction: TimeKeeper + Debug {
 #[derive(Debug)]
 pub struct Control {
     value: f64,
-    prescalar: f64,
+    range: (f64, f64),
     connection: Option<Rc<RefCell<dyn CtrlFunction>>>,
 }
 
 impl Control {
-    pub fn new(value: f64, prescalar: f64, connection: Rc<RefCell<dyn CtrlFunction>>) -> Self {
+    pub fn new(value: f64, range: (f64, f64), connection: Rc<RefCell<dyn CtrlFunction>>) -> Self {
+        assert!((0.0..=1.0).contains(&value));
         Self {
             value,
-            prescalar,
+            range,
             connection: Some(Rc::clone(&connection)),
         }
     }
 
-    pub fn from_values(value: f64, prescalar: f64) -> Self {
+    pub fn val_in_unit(value: f64) -> Self {
+        assert!((0.0..=1.0).contains(&value));
         Self {
             value,
-            prescalar,
+            range: (0.0, 1.0),
             connection: None,
         }
+    }
+
+    pub fn from_values(value: f64, range: (f64, f64)) -> Self {
+        assert!((0.0..=1.0).contains(&value));
+        Self {
+            value,
+            range,
+            connection: None,
+        }
+    }
+
+    #[inline(always)]
+    fn put_in_range(&self, value: f64) -> f64 {
+        (self.range.1 - self.range.0) * value + self.range.0
     }
 
     pub fn get_value(&self, time: time::TimeStamp) -> f64 {
@@ -51,7 +64,7 @@ impl Control {
             Some(time_function) => time_function.borrow().get_value(time),
             None => self.value,
         };
-        val * self.prescalar
+        self.put_in_range(val)
     }
 
     pub fn get_vec(&self, time: time::TimeStamp, samples: usize) -> Vec<f64> {
@@ -60,9 +73,19 @@ impl Control {
                 .borrow()
                 .get_vec(time, samples)
                 .into_iter()
-                .map(|x| x * self.prescalar)
+                .map(|x| self.put_in_range(x))
                 .collect(),
-            None => vec![self.value * self.prescalar; samples],
+            None => vec![self.put_in_range(self.value); samples],
+        }
+    }
+}
+
+impl Default for Control {
+    fn default() -> Self {
+        Self {
+            value: 0.5,
+            range: (0.0, 1.0),
+            connection: None,
         }
     }
 }

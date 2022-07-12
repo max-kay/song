@@ -2,7 +2,7 @@ use super::CtrlFunction;
 use crate::{consts::SAMPLE_RATE, time, utils::seconds_to_samples};
 use std::{cell::RefCell, ops::Deref, rc::Rc};
 
-pub trait Envelope: CtrlFunction  {
+pub trait Envelope: CtrlFunction {
     fn get_envelope(&self, sus_samples: usize) -> Vec<f64>;
 }
 
@@ -269,8 +269,6 @@ impl super::CtrlFunction for AdsrDecayed {
         todo!()
     }
 }
-
-
 
 impl Envelope for AdsrDecayed {
     fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {

@@ -85,9 +85,9 @@ impl<W: Wave> Synthesizer<'_, W> {
             effects: effects::EffectNode::Bypass,
             effect_ctrl: effects::CtrlPanel::Bypass,
             local_automation: Rc::new(RefCell::new(SynthAutomation::new())),
-            pitch_control: auto::Control::from_values(0.5, 1.0),
-            modulation_control: auto::Control::from_values(0.0, 1.0),
-            volume_control: auto::Control::from_values(1.0, 1.0),
+            pitch_control: auto::Control::val_in_unit(0.5),
+            modulation_control: auto::Control::val_in_unit(0.5),
+            volume_control: auto::Control::val_in_unit(1.0),
             oscillators,
             pitch_wheel_range: 2.0,
             time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
@@ -196,8 +196,7 @@ impl<W: wave::Wave> Synthesizer<'_, W> {
     // }
 
     pub fn get_automation_channel(&self, channel: u8) -> Option<Rc<RefCell<dyn CtrlFunction>>> {
-        self
-            .local_automation
+        self.local_automation
             .borrow()
             .track_automation
             .borrow()
