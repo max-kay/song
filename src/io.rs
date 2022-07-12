@@ -1,16 +1,5 @@
-use crate::auto;
-use crate::consts::SAMPLE_RATE;
-use crate::effects;
-use crate::instruments;
-use crate::time;
-use crate::tracks;
-use crate::utils;
-use crate::wave;
-use midly;
-use std::error::Error;
-use std::fs::File;
-use std::path::Path;
-use std::rc::Rc;
+use crate::{consts::SAMPLE_RATE, wave};
+use std::{fs::File, path::Path};
 use wav::{self, WAV_FORMAT_PCM};
 
 pub fn save_m_i16_wav(wave: wave::Mono, path: &Path) -> std::io::Result<()> {
@@ -39,7 +28,7 @@ pub fn easy_save<W: wave::Wave>(track: W, path: &Path) {
 //     let header = smf.header;
 //     let time_manager = Rc::new(parse_smf_for_time(&smf));
 //     match header.timing {
-//         // midly::Timing::Metrical(value) => time_manager.set_ticks_per_beat(value.as_int()),
+//         // midly::Timing::Metrical(value) => time_manager.borrow().set_ticks_per_beat(value.as_int()),
 //         midly::Timing::Timecode(_, _) => todo!(),
 //         midly::Timing::Metrical(_) => (),
 //     }
@@ -90,7 +79,7 @@ pub fn easy_save<W: wave::Wave>(track: W, path: &Path) {
 
 // fn parse_midi_track<'a, W: 'static + wave::Wave>(
 //     track: Vec<midly::TrackEvent>,
-//     time_manager: Rc<time::TimeManager>,
+//     time_manager: Rc<RefCell<time::TimeManager>>,
 // ) -> tracks::MidiTrack<'a, W> {
 //     let mut track_name = String::new();
 //     let mut track_number = 0;

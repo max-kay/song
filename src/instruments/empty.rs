@@ -1,6 +1,6 @@
 use super::{midi, MidiInstrument};
 use crate::{auto, time, wave};
-use std::{marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 pub struct EmptyInstrument<W: wave::Wave> {
     phantom: PhantomData<W>,
@@ -20,7 +20,15 @@ impl<W: wave::Wave> Default for EmptyInstrument<W> {
 }
 
 impl<W: wave::Wave> time::TimeKeeper for EmptyInstrument<W> {
-    fn set_time_manager(&mut self, _time_manager: &Rc<time::TimeManager>) {}
+    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<time::TimeManager>>) {}
+}
+
+impl<W: wave::Wave> auto::AutomationKeeper for EmptyInstrument<W> {
+    fn set_automation_manager(
+        &mut self,
+        _automation_manager: Rc<std::cell::RefCell<auto::AutomationManager>>,
+    ) {
+    }
 }
 
 impl<W: wave::Wave> MidiInstrument<W> for EmptyInstrument<W> {
@@ -33,6 +41,4 @@ impl<W: wave::Wave> MidiInstrument<W> for EmptyInstrument<W> {
     fn name(&self) -> &str {
         "empty"
     }
-
-    fn set_track_automation(&mut self, _automation: &Rc<auto::AutomationManager>) {}
 }

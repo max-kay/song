@@ -1,22 +1,16 @@
 use super::{Control, Effect};
-use std::collections::HashMap;
-use std::marker::PhantomData;
-use std::rc::Rc;
-use std::vec;
-
-use crate::utils::seconds_to_samples;
-use crate::wave;
-use crate::{auto, time};
+use crate::{time, utils::seconds_to_samples, wave};
+use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc, vec};
 
 pub struct Delay<W: wave::Wave> {
     phantom: PhantomData<W>,
-    time_manager: Rc<time::TimeManager>,
+    time_manager: Rc<RefCell<time::TimeManager>>,
     on: bool,
 }
 
 impl<W: wave::Wave> time::TimeKeeper for Delay<W> {
-    fn set_time_manager(&mut self, time_manager: &Rc<time::TimeManager>) {
-        self.time_manager = Rc::clone(time_manager)
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+        self.time_manager = Rc::clone(&time_manager)
     }
 }
 
@@ -38,11 +32,12 @@ impl<W: wave::Wave> Effect<W> for Delay<W> {
         let mut gain: f64 = gain_ctrl.get_value(time_triggered);
         let mut delta_t = delta_t_ctrl.get_value(time_triggered);
         while gain > 0.005 {
-            // test this value
+            // TODO test this value
             source.scale(gain);
             wave.add(&source, seconds_to_samples(delta_t));
             current_time = self
                 .time_manager
+                .borrow()
                 .add_seconds_to_stamp(current_time, delta_t);
             delta_t += delta_t_ctrl.get_value(current_time);
             gain *= gain_ctrl.get_value(current_time);
@@ -55,14 +50,8 @@ impl<W: wave::Wave> Effect<W> for Delay<W> {
 
     fn default_controls(&self) -> std::collections::HashMap<&str, Control> {
         HashMap::from([
-            (
-                "gain",
-                Control::from_values(0.7, 1.0),
-            ),
-            (
-                "delta_t",
-                Control::from_values(0.1, 1.0),
-            ),
+            ("gain", Control::from_values(0.7, 1.0)),
+            ("delta_t", Control::from_values(0.1, 1.0)),
         ])
     }
 

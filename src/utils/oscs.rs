@@ -1,6 +1,5 @@
-use std::f64::consts::{PI, TAU};
-
 use crate::consts::SAMPLE_RATE;
+use std::f64::consts::{PI, TAU};
 
 pub trait Oscillator {
     fn get_sample(&self, phase: f64, modulation: f64) -> f64;

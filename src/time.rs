@@ -1,9 +1,8 @@
-use std::rc::Rc;
-
 use crate::utils::{samples_to_seconds, seconds_to_samples};
+use std::{cell::RefCell, rc::Rc};
 
 pub trait TimeKeeper {
-    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>);
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>);
 }
 
 #[derive(Debug, Clone)]

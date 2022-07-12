@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::iter::zip;
-
-use crate::auto::Control;
-use crate::time;
-use crate::wave;
+use crate::{auto::Control, time, wave};
+use std::{cell::RefCell, collections::HashMap, fmt, iter::zip, rc::Rc};
 
 pub mod delay;
 pub mod reverb;
+
+pub use delay::Delay;
 
 #[derive(Debug, Clone)]
 pub struct ControlError;
@@ -41,16 +38,16 @@ impl CtrlPanel<'_> {
     }
 }
 impl time::TimeKeeper for CtrlPanel<'_> {
-    fn set_time_manager(&mut self, time_manager: &std::rc::Rc<time::TimeManager>) {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
         match self {
             CtrlPanel::Map(map) => {
                 for entry in map.values_mut() {
-                    entry.set_time_manager(time_manager)
+                    entry.set_time_manager(Rc::clone(&time_manager))
                 }
             }
             CtrlPanel::Node(vec) => {
                 for panel in vec {
-                    panel.set_time_manager(time_manager)
+                    panel.set_time_manager(Rc::clone(&time_manager))
                 }
             }
             CtrlPanel::Bypass => (),
@@ -65,12 +62,12 @@ pub enum EffectNode<W: wave::Wave> {
 }
 
 impl<W: wave::Wave> time::TimeKeeper for EffectNode<W> {
-    fn set_time_manager(&mut self, time_manager: &std::rc::Rc<time::TimeManager>) {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
         match self {
             EffectNode::Effect(eff) => eff.set_time_manager(time_manager),
             EffectNode::Node(vec) => {
                 for node in vec {
-                    node.set_time_manager(time_manager)
+                    node.set_time_manager(Rc::clone(&time_manager))
                 }
             }
             EffectNode::Bypass => (),

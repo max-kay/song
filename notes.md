@@ -1,9 +1,8 @@
 # TODO
 - think about loudness and values in dB
 - better sustain decay
-- think about lifetimes of tracks
 - rethink envelope
-
+- think about how to require TimeKeeper and AutomationKeeper
 
 
 # abilities for automation

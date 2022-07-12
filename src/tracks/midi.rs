@@ -1,10 +1,9 @@
-use std::rc::Rc;
-
-use crate::auto;
-use crate::effects;
-use crate::instruments;
-use crate::time;
-use crate::wave;
+use crate::{
+    auto, effects, instruments,
+    time::{self, TimeManager},
+    wave,
+};
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone, Copy)]
 pub struct Pitch {
@@ -47,52 +46,72 @@ pub struct MidiTrack<'a, W: wave::Wave> {
     pub effects: effects::EffectNode<W>,
     pub control_panel: effects::CtrlPanel<'a>,
     pub notes: Vec<Note>,
-    pub automation: Rc<auto::AutomationManager>,
-    pub time_manager: Rc<time::TimeManager>,
+    pub automation_manager: Rc<RefCell<auto::AutomationManager>>,
+    pub time_manager: Rc<RefCell<time::TimeManager>>,
 }
 
 impl<W: wave::Wave> time::TimeKeeper for MidiTrack<'_, W> {
-    fn set_time_manager(&mut self, time_manager: &Rc<time::TimeManager>) {
-        self.instrument.set_time_manager(time_manager);
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+        self.instrument.set_time_manager(Rc::clone(&time_manager));
+        self.effects.set_time_manager(Rc::clone(&time_manager));
+        self.control_panel
+            .set_time_manager(Rc::clone(&time_manager));
+        self.automation_manager
+            .borrow_mut()
+            .set_time_manager(Rc::clone(&time_manager));
+        self.time_manager = Rc::clone(&time_manager)
+    }
+}
+
+impl<W: wave::Wave> MidiTrack<'_, W> {
+    pub fn set_automation_manager(&mut self) {
+        self.instrument
+            .set_automation_manager(Rc::clone(&self.automation_manager));
     }
 }
 
 impl<'a, W: 'static + wave::Wave> MidiTrack<'a, W> {
-    pub fn new(time_manager: Rc<time::TimeManager>) -> Self {
+    pub fn new() -> Self {
         Self {
             name: String::new(),
             instrument: Box::new(instruments::EmptyInstrument::<W>::new()),
             gain: 1.0,
             effects: effects::EffectNode::Bypass,
             control_panel: effects::CtrlPanel::Bypass,
-            automation: Rc::new(auto::AutomationManager::new()),
+            automation_manager: Rc::new(RefCell::new(auto::AutomationManager::new())),
             notes: Vec::new(),
-            time_manager,
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }
     }
     pub fn play(&self) -> W {
         let mut wave = self.instrument.play_notes(&self.notes);
-        self.effects
-            .apply(&mut wave, &self.control_panel, self.time_manager.zero());
+        self.effects.apply(
+            &mut wave,
+            &self.control_panel,
+            self.time_manager.borrow().zero(),
+        );
         wave.scale(self.gain);
         wave
     }
 
-    pub fn from_instrument(
-        mut instrument: Box<dyn instruments::MidiInstrument<W>>,
-        time_manager: Rc<time::TimeManager>,
-    ) -> Self {
-        let automation = Rc::new(auto::AutomationManager::new());
-        instrument.set_track_automation(&automation);
-        Self {
+    pub fn from_instrument(instrument: Box<dyn instruments::MidiInstrument<W>>) -> Self {
+        let automation = Rc::new(RefCell::new(auto::AutomationManager::new()));
+        let track = Self {
             name: String::from(instrument.name()),
             instrument,
             gain: 1.0,
             effects: effects::EffectNode::<W>::Bypass,
             control_panel: effects::CtrlPanel::Bypass,
-            automation,
+            automation_manager: automation,
             notes: Vec::new(),
-            time_manager,
-        }
+            time_manager: Rc::new(RefCell::new(TimeManager::default())),
+        };
+        track
+    }
+}
+
+impl<'a, W: 'static + wave::Wave> Default for MidiTrack<'a, W> {
+    fn default() -> Self {
+        Self::new()
     }
 }

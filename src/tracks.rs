@@ -1,37 +1,38 @@
+use crate::{
+    auto::{self, AutomationKeeper},
+    instruments, time, wave,
+};
+use std::{cell::RefCell, rc::Rc};
+
 pub mod midi;
-use crate::instruments;
-use crate::time;
-use crate::wave;
+
 pub use midi::MidiTrack;
-use std::rc::Rc;
 
 pub enum Track<'a, W: wave::Wave> {
     Midi(midi::MidiTrack<'a, W>),
 }
 
 impl<W: wave::Wave> time::TimeKeeper for Track<'_, W> {
-    fn set_time_manager(&mut self, time_manager: &Rc<time::TimeManager>) {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
         match self {
-            Track::Midi(track) => track.set_time_manager(time_manager),
+            Track::Midi(track) => track.set_time_manager(Rc::clone(&time_manager)),
         }
     }
 }
 
-impl<'a, W: wave::Wave + 'static> Track<'a, W> {
+impl<W: wave::Wave> Track<'_, W> {
+    fn set_automation_manager(&mut self) {
+        match self {
+            Track::Midi(track) => track.set_automation_manager(),
+        }
+    }
+}
+
+impl<W: wave::Wave + 'static> Track<'_, W> {
     pub fn play(&self) -> W {
         match self {
             Track::Midi(track) => track.play(),
         }
     }
-
-    //this lifetime may be a bad idea
-    pub fn from_instrument<I: 'static + instruments::MidiInstrument<W>>(
-        time_manager: Rc<time::TimeManager>,
-        instrument: Box<I>,
-    ) -> Self {
-        Track::Midi(MidiTrack::from_instrument(
-            instrument,
-            Rc::clone(&time_manager),
-        ))
-    }
 }
+

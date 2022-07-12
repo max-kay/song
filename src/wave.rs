@@ -127,7 +127,7 @@ impl Wave for Mono {
     }
 
     fn normalize(&mut self) {
-        //bad code
+        // TODO bad code
         let norm = (self.wave.iter().map(|x| x * x).fold(0.0, |acc, x| acc + x)
             / (self.wave.len() as f64))
             .sqrt();

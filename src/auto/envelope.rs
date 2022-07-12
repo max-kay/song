@@ -1,50 +1,73 @@
-use std::rc::Rc;
+use super::CtrlFunction;
+use crate::{consts::SAMPLE_RATE, time, utils::seconds_to_samples};
+use std::{cell::RefCell, ops::Deref, rc::Rc};
 
-use crate::consts::SAMPLE_RATE;
-use crate::time::{self, TimeKeeper, TimeManager};
-use crate::utils::seconds_to_samples;
+pub trait Envelope: CtrlFunction  {
+    fn get_envelope(&self, sus_samples: usize) -> Vec<f64>;
+}
 
 pub struct Decay {
     decay: f64,
-    time_manager: Rc<TimeManager>,
+    time_manager: Rc<RefCell<time::TimeManager>>,
 }
 
 impl Decay {
     pub fn new(decay: f64) -> Self {
         Self {
             decay,
-            time_manager: Rc::new(time::TimeManager::default()),
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }
     }
     pub fn default() -> Self {
-        todo!()
+        Self {
+            decay: 0.8,
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+        }
     }
 }
 
 impl time::TimeKeeper for Decay {
-    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
-        self.time_manager = Rc::clone(time_manager)
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+        self.time_manager = Rc::clone(&time_manager)
+    }
+}
+
+impl super::CtrlFunction for Decay {
+    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+        todo!()
+    }
+
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+        todo!()
+    }
+
+    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+        todo!()
+    }
+}
+
+impl Deref for Decay {
+    type Target = dyn CtrlFunction;
+
+    fn deref(&self) -> &Self::Target {
+        self
     }
 }
 
 impl Envelope for Decay {
-    fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {
+    fn get_envelope(&self, _sus_samples: usize) -> Vec<f64> {
         let mut out = Vec::with_capacity(seconds_to_samples(self.decay));
         for i in 0..seconds_to_samples(self.decay) {
             out.push(1.0 - (i as f64) / (self.decay * (SAMPLE_RATE as f64)))
         }
         out
     }
-
-    fn get_time_manager(&self) -> &Rc<TimeManager> {
-        &self.time_manager
-    }
 }
 
 pub struct Ad {
     attack: f64,
     decay: f64,
-    time_manager: Rc<TimeManager>,
+    time_manager: Rc<RefCell<time::TimeManager>>,
 }
 
 impl Ad {
@@ -52,21 +75,46 @@ impl Ad {
         Ad {
             attack,
             decay,
-            time_manager: Rc::new(time::TimeManager::default()),
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }
     }
 
     pub fn default() -> Self {
-        todo!()
+        Self {
+            attack: 0.2,
+            decay: 0.8,
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+        }
     }
 }
 
 impl time::TimeKeeper for Ad {
-    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
-        self.time_manager = Rc::clone(time_manager)
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+        self.time_manager = Rc::clone(&time_manager)
     }
 }
 
+impl super::CtrlFunction for Ad {
+    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+        todo!()
+    }
+
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+        todo!()
+    }
+
+    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+        todo!()
+    }
+}
+
+impl Deref for Ad {
+    type Target = dyn CtrlFunction;
+
+    fn deref(&self) -> &Self::Target {
+        self
+    }
+}
 
 impl Envelope for Ad {
     fn get_envelope(&self, sus_samples: usize) -> Vec<f64> {
@@ -80,10 +128,6 @@ impl Envelope for Ad {
         }
         out
     }
-
-    fn get_time_manager(&self) -> &Rc<TimeManager> {
-        &self.time_manager
-    }
 }
 
 pub struct Adsr {
@@ -91,7 +135,7 @@ pub struct Adsr {
     decay: f64,
     sustain: f64,
     release: f64,
-    time_manager: Rc<TimeManager>,
+    time_manager: Rc<RefCell<time::TimeManager>>,
 }
 
 impl Adsr {
@@ -101,17 +145,45 @@ impl Adsr {
             decay,
             sustain,
             release,
-            time_manager: Rc::new(time::TimeManager::default()),
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }
     }
     pub fn default() -> Self {
-        todo!()
+        Self {
+            attack: 0.1,
+            decay: 0.2,
+            sustain: 0.7,
+            release: 0.8,
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+        }
     }
 }
 
 impl time::TimeKeeper for Adsr {
-    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
-        self.time_manager = Rc::clone(time_manager)
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+        self.time_manager = Rc::clone(&time_manager)
+    }
+}
+
+impl super::CtrlFunction for Adsr {
+    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+        todo!()
+    }
+
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+        todo!()
+    }
+
+    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
+        todo!()
+    }
+}
+
+impl Deref for Adsr {
+    type Target = dyn CtrlFunction;
+
+    fn deref(&self) -> &Self::Target {
+        self
     }
 }
 
@@ -140,10 +212,6 @@ impl Envelope for Adsr {
         }
         out
     }
-
-    fn get_time_manager(&self) -> &Rc<TimeManager> {
-        &self.time_manager
-    }
 }
 
 pub struct AdsrDecayed {
@@ -152,7 +220,7 @@ pub struct AdsrDecayed {
     sustain: f64,
     sus_decay: f64,
     release: f64,
-    time_manager: Rc<TimeManager>,
+    time_manager: Rc<RefCell<time::TimeManager>>,
 }
 
 impl AdsrDecayed {
@@ -163,19 +231,46 @@ impl AdsrDecayed {
             sustain,
             sus_decay,
             release,
-            time_manager: Rc::new(time::TimeManager::default()),
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }
     }
     pub fn default() -> Self {
+        Self {
+            attack: 0.1,
+            decay: 0.2,
+            sustain: 0.7,
+            sus_decay: 0.2,
+            release: 0.4,
+            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+        }
+    }
+}
+
+impl time::TimeKeeper for AdsrDecayed {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+        self.time_manager = Rc::clone(&time_manager)
+    }
+}
+
+impl super::CtrlFunction for AdsrDecayed {
+    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
+        todo!()
+    }
+
+    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
+        todo!()
+    }
+
+    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
         todo!()
     }
 }
 
+impl Deref for AdsrDecayed {
+    type Target = dyn CtrlFunction;
 
-
-impl time::TimeKeeper for AdsrDecayed {
-    fn set_time_manager(&mut self, time_manager: &Rc<TimeManager>) {
-        self.time_manager = Rc::clone(time_manager)
+    fn deref(&self) -> &Self::Target {
+        self
     }
 }
 
@@ -201,41 +296,5 @@ impl Envelope for AdsrDecayed {
             out.push((1.0 - (i as f64) / (self.release * SAMPLE_RATE as f64)) * last_sustain)
         }
         out
-    }
-
-    fn get_time_manager(&self) -> &Rc<TimeManager> {
-        &self.time_manager
-    }
-}
-
-pub trait Envelope: TimeKeeper {
-    fn get_envelope(&self, sus_samples: usize) -> Vec<f64>;
-    fn get_time_manager(&self) -> &Rc<TimeManager>;
-}
-
-impl time::TimeKeeper for Box<dyn Envelope> {
-    fn set_time_manager(&mut self, time_manager: &std::rc::Rc<time::TimeManager>) {
-        todo!()
-    }
-}
-
-impl super::CtrlFunction for Box<dyn Envelope> {
-    fn get_value(&self, time: time::TimeStamp) -> super::CtrlVal {
-        //TODO better
-        let sample = self.get_time_manager().stamp_to_samples(time);
-        *self
-            .get_vec(time, sample + 1)
-            .last()
-            .expect("error in envelope ctrlfunction")
-    }
-
-    fn get_vec(&self, _start: time::TimeStamp, samples: usize) -> Vec<super::CtrlVal> {
-        let mut out = self.get_envelope(samples);
-        out.resize(samples, 0.0);
-        out
-    }
-
-    fn trigger(&self, samples: usize) -> Vec<super::CtrlVal> {
-        self.get_envelope(samples)
     }
 }
