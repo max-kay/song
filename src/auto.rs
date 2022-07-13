@@ -9,9 +9,18 @@ pub mod point_defined;
 
 pub use composed::Composed;
 pub use constant::Constant;
-pub use envelope::{Ad, Adsr, AdsrDecayed, Decay, Envelope};
+pub use envelope::{Envelope};
 pub use lfo::Lfo;
 pub use point_defined::PointDefined;
+
+pub(super) fn make_ctrl_function<'a, T>(
+    ctrl_function: Rc<RefCell<T>>,
+) -> Rc<RefCell<dyn CtrlFunction + 'a>>
+where
+    T: CtrlFunction + 'a,
+{
+    Rc::clone(&ctrl_function) as Rc<RefCell<dyn CtrlFunction>>
+}
 
 pub trait CtrlFunction: TimeKeeper + Debug {
     fn get_value(&self, time: time::TimeStamp) -> f64;
@@ -46,6 +55,16 @@ impl Control {
     }
 
     pub fn from_values(value: f64, range: (f64, f64)) -> Self {
+        assert!((0.0..=1.0).contains(&value));
+        Self {
+            value,
+            range,
+            connection: None,
+        }
+    }
+
+    pub fn from_val_in_range(value: f64, range: (f64, f64)) -> Self{
+        let value = (value - range.0) /(range.1 - range.0);
         assert!((0.0..=1.0).contains(&value));
         Self {
             value,

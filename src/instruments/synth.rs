@@ -11,8 +11,8 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 
 #[derive(Debug)]
 pub struct SynthAutomation {
-    main_envelope: Rc<RefCell<dyn auto::Envelope>>,
-    alt_envelope: Rc<RefCell<dyn auto::Envelope>>,
+    main_envelope: Rc<RefCell<auto::Envelope>>,
+    alt_envelope: Rc<RefCell<auto::Envelope>>,
     current_velocity: Rc<RefCell<auto::Constant>>,
     lfo1: Rc<RefCell<auto::Lfo>>,
     lfo2: Rc<RefCell<auto::Lfo>>,
@@ -23,8 +23,8 @@ pub struct SynthAutomation {
 impl SynthAutomation {
     fn new() -> Self {
         Self {
-            main_envelope: Rc::new(RefCell::new(auto::Adsr::default())),
-            alt_envelope: Rc::new(RefCell::new(auto::Adsr::default())),
+            main_envelope: Rc::new(RefCell::new(auto::Envelope::default())),
+            alt_envelope: Rc::new(RefCell::new(auto::Envelope::default())),
             current_velocity: Rc::new(RefCell::new(auto::Constant::default())),
             lfo1: Rc::new(RefCell::new(auto::Lfo::default())),
             lfo2: Rc::new(RefCell::new(auto::Lfo::default())),
@@ -128,7 +128,7 @@ impl<W: Wave> Synthesizer<'_, W> {
             .borrow()
             .main_envelope
             .borrow()
-            .get_envelope(sus_samples);
+            .get_envelope(sus_samples, note_on);
 
         let freq: Vec<f64> = self
             .pitch_control
@@ -175,25 +175,25 @@ impl<W: Wave> MidiInstrument<W> for Synthesizer<'_, W> {
 }
 
 impl<W: wave::Wave> Synthesizer<'_, W> {
-    // pub fn get_main_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-    //     todo!()
-    // }
+    pub fn get_main_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().main_envelope))
+    }
 
-    // pub fn get_alt_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-    //     todo!()
-    // }
+    pub fn get_alt_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().alt_envelope))
+    }
 
-    // pub fn get_current_velocity(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-    //     Rc::clone(&(self.local_automation.borrow().current_velocity))
-    // }
+    pub fn get_current_velocity(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().current_velocity))
+    }
 
-    // pub fn get_lfo1(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-    //     Rc::clone(&(self.local_automation.borrow().lfo1 as Rc<RefCell<dyn CtrlFunction>>))
-    // }
+    pub fn get_lfo1(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().lfo1))
+    }
 
-    // pub fn get_lfo2(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-    //     Rc::clone(&(self.local_automation.borrow().lfo2 as Rc<RefCell<dyn CtrlFunction>>))
-    // }
+    pub fn get_lfo2(&self) -> Rc<RefCell<dyn CtrlFunction>> {
+        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().lfo2))
+    }
 
     pub fn get_automation_channel(&self, channel: u8) -> Option<Rc<RefCell<dyn CtrlFunction>>> {
         self.local_automation
