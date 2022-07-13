@@ -12,9 +12,7 @@ pub mod volume;
 pub use delay::Delay;
 
 trait EffMarker<W: Wave>: Effect<W> + Default {}
-trait EffCtrlMarker: Controler + Default {
-    
-}
+trait EffCtrlMarker: Controler + Default {}
 
 pub trait Effect<W: Wave>: TimeKeeper + Debug {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp);

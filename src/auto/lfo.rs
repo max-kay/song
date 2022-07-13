@@ -1,5 +1,11 @@
-use crate::{consts::SAMPLE_RATE, time, utils::oscs::Oscillator};
+use crate::{
+    consts::SAMPLE_RATE,
+    time::{self, TimeStamp},
+    utils::oscs::Oscillator,
+};
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
+
+use super::CtrlFunction;
 
 #[derive(Debug)]
 pub struct Lfo {
@@ -22,6 +28,16 @@ impl Lfo {
     }
 }
 
+impl Lfo {
+    pub fn set(&mut self, other: Lfo) {
+        self.oscillator = other.oscillator;
+        self.freq = other.freq;
+        self.modulation = other.modulation;
+        self.phase_shift = other.phase_shift;
+        self.time_manager = other.time_manager;
+    }
+}
+
 impl time::TimeKeeper for Lfo {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager)
@@ -34,8 +50,8 @@ impl Default for Lfo {
     }
 }
 
-impl super::CtrlFunction for Lfo {
-    fn get_value(&self, time: time::TimeStamp) -> f64 {
+impl CtrlFunction for Lfo {
+    fn get_value(&self, time: TimeStamp) -> f64 {
         let phase =
             ((self.time_manager.borrow().stamp_to_seconds(time) * TAU * self.freq.get_value(time)
                 / (SAMPLE_RATE as f64))
@@ -45,7 +61,7 @@ impl super::CtrlFunction for Lfo {
             .get_sample(phase, self.modulation.get_value(time))
     }
 
-    fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64> {
+    fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
         self.oscillator
             .play_shifted(
                 &self.freq.get_vec(start, samples),

@@ -1,4 +1,4 @@
-use super::{Control, Controler, Effect, EffMarker, EffCtrlMarker};
+use super::{Control, Controler, EffCtrlMarker, EffMarker, Effect};
 use crate::{
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
@@ -127,5 +127,5 @@ impl Controler for DelayCrtl {
     }
 }
 
-impl<W: Wave> EffMarker<W> for Delay<W>{}
-impl EffCtrlMarker for DelayCrtl{}
+impl<W: Wave> EffMarker<W> for Delay<W> {}
+impl EffCtrlMarker for DelayCrtl {}

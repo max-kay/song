@@ -19,7 +19,11 @@ pub fn smooth_step(x: f64) -> f64 {
 
 #[inline]
 pub fn add_elementwise<T: std::ops::AddAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
-    assert_eq!(v1.len(), v2.len(), "vectors passed to add_elementwise didn't have equal len");
+    assert_eq!(
+        v1.len(),
+        v2.len(),
+        "vectors passed to add_elementwise didn't have equal len"
+    );
     for (x2, x1) in v2.into_iter().zip(v1) {
         *x1 += x2
     }
@@ -49,12 +53,10 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected ="equal len")]
-    fn test_panic_unequal_len_add(){
+    #[should_panic(expected = "equal len")]
+    fn test_panic_unequal_len_add() {
         let mut v1: Vec<i32> = vec![2, 4, 6];
         let v2: Vec<i32> = vec![4, 5, 1, 7];
         add_elementwise(&mut v1, v2);
     }
-
-
 }

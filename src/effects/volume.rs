@@ -16,9 +16,12 @@ pub struct Volume<W> {
     controler: VolCtrl,
 }
 
-impl<W: Wave> Volume<W>{
-    pub fn new()-> Self{
-        Self { phantom: PhantomData, controler: VolCtrl::default() }
+impl<W: Wave> Volume<W> {
+    pub fn new() -> Self {
+        Self {
+            phantom: PhantomData,
+            controler: VolCtrl::default(),
+        }
     }
 }
 

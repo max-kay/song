@@ -11,7 +11,7 @@ pub struct Envelope {
     attack: Option<Control>,
     decay: Option<Control>,
     sustain: Option<Control>,
-    sus_decay: Option<Control>,
+    sus_half_life: Option<Control>,
     release: Option<Control>,
     time_manager: Rc<RefCell<TimeManager>>,
 }
@@ -22,7 +22,7 @@ impl Envelope {
             attack: None,
             decay: Some(Control::from_val_in_range(decay, (0.0, 25.0))),
             sustain: None,
-            sus_decay: None,
+            sus_half_life: None,
             release: None,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
@@ -33,7 +33,7 @@ impl Envelope {
             attack: Some(Control::from_val_in_range(attack, (0.0, 25.0))),
             decay: Some(Control::from_val_in_range(decay, (0.0, 25.0))),
             sustain: None,
-            sus_decay: None,
+            sus_half_life: None,
             release: None,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
@@ -44,24 +44,24 @@ impl Envelope {
             attack: Some(Control::from_val_in_range(attack, (0.0, 25.0))),
             decay: Some(Control::from_val_in_range(decay, (0.0, 25.0))),
             sustain: Some(Control::from_val_in_unit(sustain)),
-            sus_decay: None,
+            sus_half_life: None,
             release: Some(Control::from_val_in_range(release, (0.0, 25.0))),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 
-    pub fn new_adsr_decayed(
+    pub fn new_adsr_with_half_life(
         attack: f64,
         decay: f64,
         sustain: f64,
-        sus_decay: f64,
+        sus_half_life: f64,
         release: f64,
     ) -> Self {
         Self {
             attack: Some(Control::from_val_in_range(attack, (0.0, 25.0))),
             decay: Some(Control::from_val_in_range(decay, (0.0, 25.0))),
             sustain: Some(Control::from_val_in_unit(sustain)),
-            sus_decay: Some(Control::from_val_in_unit(sus_decay)),
+            sus_half_life: Some(Control::from_val_in_range(sus_half_life, (0.01, 10.0))),
             release: Some(Control::from_val_in_range(release, (0.0, 25.0))),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
@@ -108,11 +108,13 @@ impl Envelope {
         for i in 0..decay {
             out.push((1.0 - (i as f64) / (decay as f64)) * (1.0 - sustain) + sustain)
         }
-        if (attack + decay) < sus_samples {
-            if let Some(d_ctrl) = &self.sus_decay {
-                let sus_decay = d_ctrl.get_value(time);
-                for i in 0..(sus_samples - out.len()) {
-                    out.push(sustain * (sus_decay * (i as f64) / (SAMPLE_RATE as f64)));
+        if out.len() < sus_samples {
+            if let Some(d_ctrl) = &self.sus_half_life {
+                let sus_half_life_factor =
+                    0.5_f64.powf(1.0 / (d_ctrl.get_value(time) * SAMPLE_RATE as f64));
+                let remaining = sus_samples - out.len();
+                for i in 0..remaining {
+                    out.push(sustain * sus_half_life_factor.powi(i as i32));
                 }
             } else {
                 let mut sus = vec![sustain; sus_samples - out.len()];
@@ -124,6 +126,16 @@ impl Envelope {
             out.push((1.0 - (i as f64) / (release as f64)) * last_sustain)
         }
         out
+    }
+}
+
+impl Envelope {
+    pub fn set(&mut self, other: Envelope) {
+        self.attack = other.attack;
+        self.decay = other.decay;
+        self.sustain = other.sustain;
+        self.sus_half_life = other.sus_half_life;
+        self.release = other.release;
     }
 }
 
@@ -151,5 +163,4 @@ impl CtrlFunction for Envelope {
 }
 
 #[cfg(test)]
-mod test{
-}
+mod test {}

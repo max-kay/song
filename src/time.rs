@@ -10,7 +10,7 @@ pub struct TimeManager {
     pub ticks_per_beat: u16,
     pub beats_per_bar: u16,
     pub beat_value: u16,
-    pub bps: f64,
+    pub beats_per_seconds: f64,
 }
 
 impl TimeManager {
@@ -24,10 +24,10 @@ impl TimeManager {
         self.beat_value = value
     }
     pub fn set_bpm(&mut self, value: f64) {
-        self.bps = value / 60.0
+        self.beats_per_seconds = value / 60.0
     }
     pub fn get_bpm(&self) -> f64 {
-        self.bps * 60.0
+        self.beats_per_seconds * 60.0
     }
 }
 
@@ -37,7 +37,7 @@ impl Default for TimeManager {
             ticks_per_beat: 120,
             beats_per_bar: 4,
             beat_value: 4,
-            bps: 2.0,
+            beats_per_seconds: 2.0,
         }
     }
 }
@@ -45,10 +45,6 @@ impl Default for TimeManager {
 impl TimeManager {
     fn stamp_to_ticks(&self, stamp: TimeStamp) -> u16 {
         stamp.tick + (stamp.beat + stamp.bar * self.beats_per_bar) * self.ticks_per_beat
-    }
-
-    fn ticks_to_seconds(&self, ticks: u16) -> f64 {
-        ticks as f64 / self.ticks_per_beat as f64 / self.bps as f64
     }
 
     fn ticks_to_stamp(&self, ticks: u16) -> TimeStamp {
@@ -59,9 +55,12 @@ impl TimeManager {
         }
     }
 
+    fn ticks_to_seconds(&self, ticks: u16) -> f64 {
+        (ticks as f64 / self.ticks_per_beat as f64) / self.beats_per_seconds as f64
+    }
+
     fn seconds_to_ticks(&self, seconds: f64) -> u16 {
-        let ticks_per_second = self.bps / 60.0 * self.ticks_per_beat as f64;
-        (seconds * ticks_per_second) as u16
+        (seconds * (self.beats_per_seconds * self.ticks_per_beat as f64)) as u16
     }
 }
 

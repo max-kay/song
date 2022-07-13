@@ -189,8 +189,6 @@ impl<W: Wave> Synthesizer<W> {
             .borrow()
             .get_envelope(sus_samples, note_on);
 
-        println!("{}", utils::samples_to_seconds(envelope.len()));
-
         let freq: Vec<f64> = self
             .pitch_control
             .get_vec(note_on, envelope.len())
@@ -271,9 +269,41 @@ impl<W: Wave> Synthesizer<W> {
     pub fn add_osc(&mut self, oscillator: Oscillator) {
         self.oscillators.add_osc(oscillator)
     }
+
+    pub fn set_main_envelope(&mut self, envelope: Envelope) {
+        self.local_automation
+            .borrow_mut()
+            .main_envelope
+            .borrow_mut()
+            .set(envelope);
+    }
+
+    pub fn set_alt_envelope(&mut self, envelope: Envelope) {
+        self.local_automation
+            .borrow_mut()
+            .alt_envelope
+            .borrow_mut()
+            .set(envelope);
+    }
+
+    pub fn set_lfo1(&mut self, lfo: Lfo) {
+        self.local_automation
+            .borrow_mut()
+            .lfo1
+            .borrow_mut()
+            .set(lfo);
+    }
+
+    pub fn set_lfo2(&mut self, lfo: Lfo) {
+        self.local_automation
+            .borrow_mut()
+            .lfo2
+            .borrow_mut()
+            .set(lfo);
+    }
 }
 
-impl<'a, W: Wave> Synthesizer<W> {
+impl<W: Wave> Synthesizer<W> {
     pub fn play_test_chord(&self) -> W {
         let note_on = self.time_manager.borrow().zero();
         let note_off = self.time_manager.borrow().seconds_to_stamp(6.0);

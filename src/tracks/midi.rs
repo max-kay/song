@@ -82,10 +82,8 @@ impl<'a, W: 'static + wave::Wave> MidiTrack<W> {
     }
     pub fn play(&self) -> W {
         let mut wave = self.instrument.play_notes(&self.notes);
-        self.effects.apply(
-            &mut wave,
-            self.time_manager.borrow().zero(),
-        );
+        self.effects
+            .apply(&mut wave, self.time_manager.borrow().zero());
         wave.scale(self.gain);
         wave
     }

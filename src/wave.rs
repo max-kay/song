@@ -156,5 +156,3 @@ impl Wave for Mono {
         wav::write(header, &track, &mut out_file)
     }
 }
-
-

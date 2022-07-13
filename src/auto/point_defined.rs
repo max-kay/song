@@ -1,14 +1,19 @@
-use crate::{time, utils};
+use crate::{
+    time::{TimeKeeper, TimeManager, TimeStamp},
+    utils,
+};
 use std::{cell::RefCell, rc::Rc};
+
+use super::CtrlFunction;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
     value: f64,
-    time: time::TimeStamp,
+    time: TimeStamp,
 }
 
 impl AutomationPoint {
-    pub fn new(value: f64, time: time::TimeStamp) -> Self {
+    pub fn new(value: f64, time: TimeStamp) -> Self {
         assert!(
             (0.0..=1.0).contains(&value),
             "the value of an AutomationPoint has to in [0.0, 1.0] (closed interval)"
@@ -18,7 +23,7 @@ impl AutomationPoint {
     pub fn get_value(&self) -> f64 {
         self.value
     }
-    pub fn get_time(&self) -> time::TimeStamp {
+    pub fn get_time(&self) -> TimeStamp {
         self.time
     }
 }
@@ -27,7 +32,7 @@ impl Default for AutomationPoint {
     fn default() -> Self {
         Self {
             value: Default::default(),
-            time: time::TimeStamp::zero(),
+            time: TimeStamp::zero(),
         }
     }
 }
@@ -76,7 +81,7 @@ impl Interpolation {
 pub struct PointDefined {
     points: Vec<AutomationPoint>,
     interpolation: Interpolation,
-    time_manager: Rc<RefCell<time::TimeManager>>,
+    time_manager: Rc<RefCell<TimeManager>>,
 }
 
 impl PointDefined {
@@ -86,11 +91,11 @@ impl PointDefined {
         Self {
             points,
             interpolation,
-            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 
-    fn find_around(&self, time: time::TimeStamp) -> (f64, f64, f64) {
+    fn find_around(&self, time: TimeStamp) -> (f64, f64, f64) {
         let mut p1 = AutomationPoint::default();
         let mut p2 = AutomationPoint::default();
         for (i, p) in self.points.iter().enumerate() {
@@ -113,28 +118,28 @@ impl PointDefined {
         (val1, val2, part_secs / tot_secs)
     }
 
-    pub fn one_point(val: f64, time_manager: Rc<RefCell<time::TimeManager>>) -> Self {
+    pub fn one_point(val: f64, time_manager: Rc<RefCell<TimeManager>>) -> Self {
         Self {
-            points: vec![AutomationPoint::new(val, time::TimeStamp::zero())],
+            points: vec![AutomationPoint::new(val, TimeStamp::zero())],
             interpolation: Interpolation::Linear,
             time_manager,
         }
     }
 }
 
-impl time::TimeKeeper for PointDefined {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+impl TimeKeeper for PointDefined {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager)
     }
 }
 
-impl super::CtrlFunction for PointDefined {
-    fn get_value(&self, time: time::TimeStamp) -> f64 {
+impl CtrlFunction for PointDefined {
+    fn get_value(&self, time: TimeStamp) -> f64 {
         let (val1, val2, progress) = self.find_around(time);
         self.interpolation.interpolate(val1, val2, progress)
     }
 
-    fn get_vec(&self, onset: time::TimeStamp, samples: usize) -> Vec<f64> {
+    fn get_vec(&self, onset: TimeStamp, samples: usize) -> Vec<f64> {
         let time_stamps = self.time_manager.borrow().get_stamp_vec(onset, samples);
         let mut out = Vec::with_capacity(samples);
         for t in time_stamps {
