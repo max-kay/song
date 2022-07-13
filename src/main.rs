@@ -6,5 +6,5 @@ fn main() {
     // let wave = song.get_wave();
     // let target = Path::new("out/hello_world.wav");
     // io::save_m_i16_wav(wave, target).unwrap();
-    let instument = song::instruments::Synthesizer::<Mono>::new("first".to_string());
+    let instument = song::instr::Synthesizer::<Mono>::new("first".to_string());
 }

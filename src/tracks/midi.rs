@@ -1,5 +1,5 @@
 use crate::{
-    auto, effects, instruments,
+    auto, effects, instr,
     time::{self, TimeManager},
     wave,
 };
@@ -42,7 +42,7 @@ pub struct Note {
 #[derive(Debug)]
 pub struct MidiTrack<'a, W: wave::Wave> {
     pub name: String,
-    pub instrument: Box<dyn instruments::MidiInstrument<W>>,
+    pub instrument: Box<dyn instr::MidiInstrument<W>>,
     pub gain: f64,
     pub effects: effects::EffectNode<W>,
     pub control_panel: effects::CtrlPanel<'a>,
@@ -75,7 +75,7 @@ impl<'a, W: 'static + wave::Wave> MidiTrack<'a, W> {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            instrument: Box::new(instruments::EmptyInstrument::<W>::new()),
+            instrument: Box::new(instr::EmptyInstrument::<W>::new()),
             gain: 1.0,
             effects: effects::EffectNode::Bypass,
             control_panel: effects::CtrlPanel::Bypass,
@@ -95,7 +95,7 @@ impl<'a, W: 'static + wave::Wave> MidiTrack<'a, W> {
         wave
     }
 
-    pub fn from_instrument(instrument: Box<dyn instruments::MidiInstrument<W>>) -> Self {
+    pub fn from_instrument(instrument: Box<dyn instr::MidiInstrument<W>>) -> Self {
         let automation = Rc::new(RefCell::new(auto::AutomationManager::new()));
         let track = Self {
             name: String::from(instrument.name()),

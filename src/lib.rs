@@ -6,7 +6,7 @@ use time::TimeKeeper;
 pub mod auto;
 pub mod consts;
 pub mod effects;
-pub mod instruments;
+pub mod instr;
 pub mod io;
 pub mod time;
 pub mod tracks;

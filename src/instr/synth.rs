@@ -64,6 +64,13 @@ impl<W: Wave> OscPanel<W> {
         }
         W::from_vec(wave)
     }
+
+    pub fn add_osc(&mut self, oscillator: Oscillator) {
+        self.oscillators.push(oscillator);
+        self.pitch_offsets
+            .push(Control::from_val_in_range(0.0, (-4800.0, 4800.0)));
+        self.weights.push(Control::from_val_in_unit(1.0));
+    }
 }
 
 #[derive(Debug)]
@@ -208,7 +215,7 @@ impl<W: Wave> Synthesizer<'_, W> {
 
 impl<W: Wave> auto::AutomationKeeper for Synthesizer<'_, W> {
     fn set_automation_manager(&mut self, automation_manager: Rc<RefCell<auto::AutomationManager>>) {
-        (*self.local_automation)
+        self.local_automation
             .borrow_mut()
             .set_automation_manager(Rc::clone(&automation_manager))
     }
@@ -258,6 +265,12 @@ impl<W: wave::Wave> Synthesizer<'_, W> {
             .track_automation
             .borrow()
             .get_channel(channel)
+    }
+}
+
+impl<W: Wave> Synthesizer<'_, W> {
+    pub fn add_osc(&mut self, oscillator: Oscillator) {
+        self.oscillators.add_osc(oscillator)
     }
 }
 
