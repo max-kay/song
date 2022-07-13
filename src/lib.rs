@@ -14,13 +14,13 @@ pub mod utils;
 pub mod wave;
 
 #[derive(Debug)]
-pub struct Song<'a, W: wave::Wave> {
+pub struct Song<W: wave::Wave> {
     name: String,
-    tracks: Vec<tracks::Track<'a, W>>,
+    tracks: Vec<tracks::Track<W>>,
     time_manager: Rc<RefCell<time::TimeManager>>,
 }
 
-impl<'a, W: 'static + wave::Wave> Song<'a, W> {
+impl<W: 'static + wave::Wave> Song<W> {
     pub fn set_time_manager(&mut self) {
         for track in &mut self.tracks {
             track.set_time_manager(Rc::clone(&self.time_manager))
@@ -38,8 +38,8 @@ impl<'a, W: 'static + wave::Wave> Song<'a, W> {
         }
     }
 
-    pub fn add_midi_track(&mut self, track: tracks::MidiTrack<'a, W>) {
-        self.tracks.push(tracks::Track::<'a>::Midi(track))
+    pub fn add_midi_track(&mut self, track: tracks::MidiTrack<W>) {
+        self.tracks.push(tracks::Track::Midi(track))
     }
 
     pub fn get_wave(&self) -> W {
