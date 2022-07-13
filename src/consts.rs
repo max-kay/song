@@ -1,1 +1,1 @@
-pub const SAMPLE_RATE: u32 = 44100;
+pub const SAMPLE_RATE: usize = 44100;

@@ -149,3 +149,7 @@ impl CtrlFunction for Envelope {
         }
     }
 }
+
+#[cfg(test)]
+mod test{
+}

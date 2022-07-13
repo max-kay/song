@@ -1,4 +1,4 @@
-use super::{Control, Controler, Effect};
+use super::{Control, Controler, Effect, EffMarker, EffCtrlMarker};
 use crate::{
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
@@ -6,6 +6,7 @@ use crate::{
 };
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
+const SMALLEST_GAIN_ALLOWED: f64 = 0.05;
 const GAIN_RANGE: (f64, f64) = (0.0, 0.95);
 const DELTA_T_RANGE: (f64, f64) = (0.001, 6.0);
 
@@ -47,8 +48,7 @@ impl<W: Wave> Effect<W> for Delay<W> {
         let mut current_time = time_triggered;
         let mut gain: f64 = self.controler.get_gain_ctrl().get_value(time_triggered);
         let mut delta_t = self.controler.get_delta_t_ctrl().get_value(time_triggered);
-        while gain > 0.005 {
-            // TODO test this value
+        while gain > SMALLEST_GAIN_ALLOWED {
             source.scale(gain);
             wave.add(&source, utils::seconds_to_samples(delta_t));
             current_time = self
@@ -126,3 +126,6 @@ impl Controler for DelayCrtl {
         self.delta_t = Control::from_val_in_range(0.6, DELTA_T_RANGE)
     }
 }
+
+impl<W: Wave> EffMarker<W> for Delay<W>{}
+impl EffCtrlMarker for DelayCrtl{}

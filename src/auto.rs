@@ -36,7 +36,7 @@ pub struct Control {
 
 impl Control {
     pub fn new(value: f64, range: (f64, f64), connection: Rc<RefCell<dyn CtrlFunction>>) -> Self {
-        assert!((0.0..=1.0).contains(&value));
+        assert!((0.0..=1.0).contains(&value), "control_value out of range");
         Self {
             value,
             range,
@@ -45,7 +45,7 @@ impl Control {
     }
 
     pub fn from_val_in_unit(value: f64) -> Self {
-        assert!((0.0..=1.0).contains(&value));
+        assert!((0.0..=1.0).contains(&value), "control_value out of range");
         Self {
             value,
             range: (0.0, 1.0),
@@ -54,7 +54,7 @@ impl Control {
     }
 
     pub fn from_values(value: f64, range: (f64, f64)) -> Self {
-        assert!((0.0..=1.0).contains(&value));
+        assert!((0.0..=1.0).contains(&value), "control_value out of range");
         Self {
             value,
             range,

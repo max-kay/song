@@ -38,7 +38,7 @@ impl<W: Wave> OscPanel<W> {
         start: TimeStamp,
         samples: usize,
     ) -> W {
-        let mut wave = Vec::with_capacity(samples);
+        let mut wave = vec![0.0; samples];
 
         for ((osc, weigth), offset) in self
             .oscillators
@@ -189,6 +189,8 @@ impl<W: Wave> Synthesizer<W> {
             .borrow()
             .get_envelope(sus_samples, note_on);
 
+        println!("{}", utils::samples_to_seconds(envelope.len()));
+
         let freq: Vec<f64> = self
             .pitch_control
             .get_vec(note_on, envelope.len())
@@ -274,7 +276,7 @@ impl<W: Wave> Synthesizer<W> {
 impl<'a, W: Wave> Synthesizer<W> {
     pub fn play_test_chord(&self) -> W {
         let note_on = self.time_manager.borrow().zero();
-        let note_off = self.time_manager.borrow().seconds_to_stamp(2.0);
+        let note_off = self.time_manager.borrow().seconds_to_stamp(6.0);
         let mut wave = self.play_freq(note_on, note_off, 300.0, 0.7);
         wave.add_consuming(self.play_freq(note_on, note_off, 375.0, 0.7), 0);
         wave.add_consuming(self.play_freq(note_on, note_off, 450.0, 0.7), 0);

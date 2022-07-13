@@ -109,20 +109,20 @@ impl Wave for Mono {
     }
 
     fn scale_by_vec(&mut self, vec: Vec<f64>) {
-        debug_assert_eq!(self.len(), vec.len());
+        debug_assert_eq!(self.len(), vec.len(), "error in scale_by_vec");
         for (e1, e2) in zip(&mut self.wave, vec.into_iter()) {
             *e1 *= e2;
         }
     }
     fn mult(&mut self, other: &Self) {
-        debug_assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), other.len(), "error in mult");
         for (e1, e2) in zip(&mut self.wave, other.wave.iter()) {
             *e1 *= e2;
         }
     }
 
     fn mult_consuming(&mut self, other: Self) {
-        debug_assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), other.len(), "error in mult_consuming");
         for (e1, e2) in zip(&mut self.wave, other.wave) {
             *e1 *= e2;
         }
@@ -145,7 +145,7 @@ impl Wave for Mono {
     }
 
     fn save(&self, path: &Path) -> Result<(), std::io::Error> {
-        let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE, 16);
+        let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE as u32, 16);
         let track = wav::BitDepth::Sixteen(
             self.get_vec()
                 .into_iter()
@@ -157,14 +157,4 @@ impl Wave for Mono {
     }
 }
 
-pub fn save_m_i16_wav(wave: Mono, path: &Path) -> std::io::Result<()> {
-    let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE, 16);
-    let track = wav::BitDepth::Sixteen(
-        wave.get_vec()
-            .into_iter()
-            .map(|x| (x * (i16::MAX as f64) / 4.0) as i16)
-            .collect(),
-    );
-    let mut out_file = File::create(path).expect("Error while making file!");
-    wav::write(header, &track, &mut out_file)
-}
+

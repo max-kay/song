@@ -1,17 +1,23 @@
 use crate::{
     auto::Control,
-    time::{self, TimeKeeper, TimeManager},
-    wave::{self, Wave},
+    time::{TimeKeeper, TimeManager, TimeStamp},
+    wave::Wave,
 };
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 pub mod delay;
 pub mod reverb;
+pub mod volume;
 
 pub use delay::Delay;
 
-pub trait Effect<W: wave::Wave>: TimeKeeper + Debug {
-    fn apply(&self, wave: &mut W, time_triggered: time::TimeStamp);
+trait EffMarker<W: Wave>: Effect<W> + Default {}
+trait EffCtrlMarker: Controler + Default {
+    
+}
+
+pub trait Effect<W: Wave>: TimeKeeper + Debug {
+    fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn get_controls(&mut self) -> &mut dyn Controler;
     fn on(&mut self);
@@ -30,7 +36,7 @@ pub enum EffectNode<W: Wave> {
     Bypass,
 }
 
-impl<W: wave::Wave> TimeKeeper for EffectNode<W> {
+impl<W: Wave> TimeKeeper for EffectNode<W> {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         match self {
             EffectNode::Effect(eff) => eff.set_time_manager(time_manager),
@@ -44,8 +50,8 @@ impl<W: wave::Wave> TimeKeeper for EffectNode<W> {
     }
 }
 
-impl<W: wave::Wave> EffectNode<W> {
-    pub fn apply(&self, wave: &mut W, time_triggered: time::TimeStamp) {
+impl<W: Wave> EffectNode<W> {
+    pub fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
         match self {
             EffectNode::Effect(eff) => eff.apply(wave, time_triggered),
             EffectNode::Node(nodes) => {
@@ -61,4 +67,3 @@ impl<W: wave::Wave> EffectNode<W> {
         }
     }
 }
-

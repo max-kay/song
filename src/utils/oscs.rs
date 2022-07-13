@@ -1,5 +1,3 @@
-use factorial::Factorial;
-
 use crate::consts::SAMPLE_RATE;
 use std::{
     f64::consts::{PI, TAU},
@@ -20,10 +18,11 @@ impl Default for Oscillator {
 }
 
 impl Oscillator {
+    #[inline(always)]
     pub fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
         use Oscillator::*;
         match self {
-            Sine => aproximate_sin::<5>(phase),
+            Sine => phase.sin(), // TODO should I use a aproximation for (0, Tau)?
             ModSquare => {
                 if phase < modulation * TAU {
                     1.0
@@ -52,22 +51,23 @@ impl Oscillator {
         samples: usize,
         phase_shift: f64,
     ) -> Vec<f64> {
-        assert_eq!(freq.len(), samples);
-        assert_eq!(modulation.len(), samples);
+        assert_eq!(
+            freq.len(),
+            samples,
+            "freq.len() doesn't match the requested samples"
+        );
+        assert_eq!(
+            modulation.len(),
+            samples,
+            "modulation.len() doesn't match the requsted samples"
+        );
         let mut out = Vec::with_capacity(samples);
         let mut phase = phase_shift;
         for i in 0..samples {
-            phase += TAU * freq[i] / (SAMPLE_RATE as f64) % TAU;
+            phase += TAU * freq[i] / (SAMPLE_RATE as f64);
+            phase %= TAU;
             out.push(self.get_sample(phase, modulation[i]))
         }
         out
     }
-}
-
-fn aproximate_sin<const ITTERATIONS: u8>(x: f64) -> f64 {
-    let mut result = 0.0;
-    for i in 0..ITTERATIONS {
-        result += x.powi(i as i32) / (Factorial::factorial(&i) as f64)
-    }
-    result
 }
