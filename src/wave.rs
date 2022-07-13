@@ -1,4 +1,8 @@
-use std::{fmt::Debug, iter::zip};
+use std::{fmt::Debug, fs::File, iter::zip, path::Path};
+
+use wav::WAV_FORMAT_PCM;
+
+use crate::consts::SAMPLE_RATE;
 
 pub trait Wave: Clone + Debug {
     fn new() -> Self;
@@ -21,6 +25,8 @@ pub trait Wave: Clone + Debug {
     fn is_empty(&self) -> bool;
 
     fn normalize(&mut self);
+
+    fn save(&self, path: &Path) -> Result<(), std::io::Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -57,31 +63,16 @@ impl Wave for Mono {
         }
     }
 
-    fn clear(&mut self) {
-        self.wave = Vec::new()
-    }
-
     fn from_vec(vec: Vec<f64>) -> Self {
         Self { wave: vec }
     }
 
-    fn scale(&mut self, value: f64) {
-        self.wave = self.wave.iter().map(|x| x * value).collect()
+    fn resize(&mut self, new_len: usize, value: f64) {
+        self.wave.resize(new_len, value)
     }
 
-    fn add_consuming(&mut self, other: Self, index: usize) {
-        if index == 0 && self.len() == other.len() {
-            for (e1, e2) in zip(&mut self.wave, other.wave) {
-                *e1 += e2;
-            }
-        } else {
-            if self.len() < index + other.len() {
-                self.wave.resize(index + other.len(), 0.0)
-            }
-            for i in 0..other.len() {
-                self.wave[i + index] += other.wave[i];
-            }
-        }
+    fn clear(&mut self) {
+        self.wave = Vec::new()
     }
 
     fn add(&mut self, other: &Self, index: usize) {
@@ -98,9 +89,34 @@ impl Wave for Mono {
             }
         }
     }
+
+    fn add_consuming(&mut self, other: Self, index: usize) {
+        if index == 0 && self.len() == other.len() {
+            for (e1, e2) in zip(&mut self.wave, other.wave) {
+                *e1 += e2;
+            }
+        } else {
+            if self.len() < index + other.len() {
+                self.wave.resize(index + other.len(), 0.0)
+            }
+            for i in 0..other.len() {
+                self.wave[i + index] += other.wave[i];
+            }
+        }
+    }
+    fn scale(&mut self, value: f64) {
+        self.wave = self.wave.iter().map(|x| x * value).collect()
+    }
+
     fn scale_by_vec(&mut self, vec: Vec<f64>) {
         debug_assert_eq!(self.len(), vec.len());
         for (e1, e2) in zip(&mut self.wave, vec.into_iter()) {
+            *e1 *= e2;
+        }
+    }
+    fn mult(&mut self, other: &Self) {
+        debug_assert_eq!(self.len(), other.len());
+        for (e1, e2) in zip(&mut self.wave, other.wave.iter()) {
             *e1 *= e2;
         }
     }
@@ -108,12 +124,6 @@ impl Wave for Mono {
     fn mult_consuming(&mut self, other: Self) {
         debug_assert_eq!(self.len(), other.len());
         for (e1, e2) in zip(&mut self.wave, other.wave) {
-            *e1 *= e2;
-        }
-    }
-    fn mult(&mut self, other: &Self) {
-        debug_assert_eq!(self.len(), other.len());
-        for (e1, e2) in zip(&mut self.wave, other.wave.iter()) {
             *e1 *= e2;
         }
     }
@@ -134,7 +144,27 @@ impl Wave for Mono {
         self.wave = self.wave.iter().map(|x| x / norm).collect();
     }
 
-    fn resize(&mut self, new_len: usize, value: f64) {
-        self.wave.resize(new_len, value)
+    fn save(&self, path: &Path) -> Result<(), std::io::Error> {
+        let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE, 16);
+        let track = wav::BitDepth::Sixteen(
+            self.get_vec()
+                .into_iter()
+                .map(|x| (x * (i16::MAX as f64) / 4.0) as i16)
+                .collect(),
+        );
+        let mut out_file = File::create(path).expect("Error while making file!");
+        wav::write(header, &track, &mut out_file)
     }
+}
+
+pub fn save_m_i16_wav(wave: Mono, path: &Path) -> std::io::Result<()> {
+    let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE, 16);
+    let track = wav::BitDepth::Sixteen(
+        wave.get_vec()
+            .into_iter()
+            .map(|x| (x * (i16::MAX as f64) / 4.0) as i16)
+            .collect(),
+    );
+    let mut out_file = File::create(path).expect("Error while making file!");
+    wav::write(header, &track, &mut out_file)
 }

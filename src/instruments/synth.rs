@@ -1,7 +1,7 @@
 use super::MidiInstrument;
 use crate::{
     auto::{self, AutomationManager, CtrlFunction},
-    effects, io,
+    effects,
     time::{self, TimeKeeper},
     tracks::midi,
     utils::oscs,
@@ -208,17 +208,17 @@ impl<'a, W: Wave> Synthesizer<'a, W> {
     pub fn play_test_chord(&self) -> W {
         let note_on = self.time_manager.borrow().zero();
         let note_off = self.time_manager.borrow().seconds_to_stamp(2.0);
-        let mut out = self.play_freq(note_on, note_off, 300.0, 0.7);
-        out.add_consuming(self.play_freq(note_on, note_off, 375.0, 0.7), 0);
-        out.add_consuming(self.play_freq(note_on, note_off, 450.0, 0.7), 0);
-        out.add_consuming(self.play_freq(note_on, note_off, 600.0, 0.7), 0);
-        out
+        let mut wave = self.play_freq(note_on, note_off, 300.0, 0.7);
+        wave.add_consuming(self.play_freq(note_on, note_off, 375.0, 0.7), 0);
+        wave.add_consuming(self.play_freq(note_on, note_off, 450.0, 0.7), 0);
+        wave.add_consuming(self.play_freq(note_on, note_off, 600.0, 0.7), 0);
+        wave
     }
 
     pub fn save_test_chord(&self) {
-        let track = self.play_test_chord();
-        let path = format!("out/synthtest/{}_chord.wav", self.name);
-        let path = Path::new(&path);
-        io::easy_save(track, path);
+        let wave = self.play_test_chord();
+        let path = &format!("out/synthtest/{}_chord.wav", self.name);
+        let path = Path::new(path);
+        wave.save(path).expect("error while saving test chord");
     }
 }

@@ -142,8 +142,4 @@ impl super::CtrlFunction for PointDefined {
         }
         out
     }
-
-    fn trigger(&self, samples: usize) -> Vec<f64> {
-        self.get_vec(self.time_manager.borrow().zero(), samples)
-    }
 }

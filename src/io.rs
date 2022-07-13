@@ -1,21 +1,8 @@
-use crate::{consts::SAMPLE_RATE, wave};
-use std::{fs::File, path::Path};
-use wav::{self, WAV_FORMAT_PCM};
+use crate::wave::Wave;
+use std::path::Path;
 
-pub fn save_m_i16_wav(wave: wave::Mono, path: &Path) -> std::io::Result<()> {
-    let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE, 16);
-    let track = wav::BitDepth::Sixteen(
-        wave.get_vec()
-            .into_iter()
-            .map(|x| (x * (i16::MAX as f64) / 4.0) as i16)
-            .collect(),
-    );
-    let mut out_file = File::create(path).expect("Error while making file!");
-    wav::write(header, &track, &mut out_file)
-}
-
-pub fn easy_save<W: wave::Wave>(track: W, path: &Path) {
-    todo!()
+pub fn save_wave<W: Wave>(wave: W, path: &Path) -> Result<(), std::io::Error> {
+    wave.save(path)
 }
 
 // pub fn read_midi_file<W: 'static + wave::Wave>(

@@ -22,8 +22,4 @@ impl super::CtrlFunction for Constant {
     fn get_vec(&self, _start: time::TimeStamp, samples: usize) -> Vec<f64> {
         vec![self.0; samples]
     }
-
-    fn trigger(&self, samples: usize) -> Vec<f64> {
-        vec![self.0; samples]
-    }
 }

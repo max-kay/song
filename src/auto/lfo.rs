@@ -56,8 +56,4 @@ impl super::CtrlFunction for Lfo {
             .into_iter()
             .collect()
     }
-
-    fn trigger(&self, samples: usize) -> Vec<f64> {
-        self.get_vec(time::TimeStamp::zero(), samples)
-    }
 }

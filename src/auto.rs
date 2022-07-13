@@ -9,11 +9,11 @@ pub mod point_defined;
 
 pub use composed::Composed;
 pub use constant::Constant;
-pub use envelope::{Envelope};
+pub use envelope::Envelope;
 pub use lfo::Lfo;
 pub use point_defined::PointDefined;
 
-pub(super) fn make_ctrl_function<'a, T>(
+pub fn make_ctrl_function<'a, T>(
     ctrl_function: Rc<RefCell<T>>,
 ) -> Rc<RefCell<dyn CtrlFunction + 'a>>
 where
@@ -25,7 +25,6 @@ where
 pub trait CtrlFunction: TimeKeeper + Debug {
     fn get_value(&self, time: time::TimeStamp) -> f64;
     fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64>;
-    fn trigger(&self, samples: usize) -> Vec<f64>;
 }
 
 #[derive(Debug)]
@@ -63,8 +62,8 @@ impl Control {
         }
     }
 
-    pub fn from_val_in_range(value: f64, range: (f64, f64)) -> Self{
-        let value = (value - range.0) /(range.1 - range.0);
+    pub fn from_val_in_range(value: f64, range: (f64, f64)) -> Self {
+        let value = (value - range.0) / (range.1 - range.0);
         assert!((0.0..=1.0).contains(&value));
         Self {
             value,
@@ -76,6 +75,16 @@ impl Control {
     #[inline(always)]
     fn put_in_range(&self, value: f64) -> f64 {
         (self.range.1 - self.range.0) * value + self.range.0
+    }
+}
+
+impl Control {
+    pub fn set_connection(&mut self, connection: Rc<RefCell<dyn CtrlFunction>>) {
+        self.connection = Some(connection);
+    }
+
+    pub fn loose_connection(&mut self) {
+        self.connection = None
     }
 
     pub fn get_value(&self, time: time::TimeStamp) -> f64 {

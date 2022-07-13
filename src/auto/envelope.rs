@@ -75,26 +75,31 @@ impl Default for Envelope {
 }
 
 impl Envelope {
-    pub fn get_envelope(&self, sus_samples: usize, time: TimeStamp) -> Vec<f64> {
-        let attack = match &self.attack{
+    fn get_vals(&self, time: TimeStamp) -> (usize, usize, f64, usize) {
+        let attack = match &self.attack {
             Some(ctrl) => utils::seconds_to_samples(ctrl.get_value(time)),
             None => 0,
         };
 
-        let decay = match &self.decay{
+        let decay = match &self.decay {
             Some(ctrl) => utils::seconds_to_samples(ctrl.get_value(time)),
             None => 0,
         };
 
-        let sustain = match &self.sustain{
+        let sustain = match &self.sustain {
             Some(ctrl) => ctrl.get_value(time),
             None => 0.0,
         };
 
-        let release = match &self.release{
+        let release = match &self.release {
             Some(ctrl) => utils::seconds_to_samples(ctrl.get_value(time)),
             None => 0,
         };
+        (attack, decay, sustain, release)
+    }
+
+    pub fn get_envelope(&self, sus_samples: usize, time: TimeStamp) -> Vec<f64> {
+        let (attack, decay, sustain, release) = self.get_vals(time);
 
         let mut out = Vec::with_capacity(sus_samples + release);
         for i in 0..attack {
@@ -129,15 +134,18 @@ impl TimeKeeper for Envelope {
 }
 
 impl CtrlFunction for Envelope {
-    fn get_value(&self, time: crate::time::TimeStamp) -> f64 {
-        todo!()
+    fn get_value(&self, _time: TimeStamp) -> f64 {
+        panic!()
     }
 
-    fn get_vec(&self, start: crate::time::TimeStamp, samples: usize) -> Vec<f64> {
-        todo!()
-    }
-
-    fn trigger(&self, samples: usize) -> Vec<f64> {
-        todo!()
+    fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
+        let (attack, decay, _, release) = self.get_vals(start);
+        if samples > attack + decay + release {
+            let mut vec = self.get_envelope(0, start);
+            vec.resize(samples, 0.0);
+            vec
+        } else {
+            self.get_envelope(samples - release, start)
+        }
     }
 }

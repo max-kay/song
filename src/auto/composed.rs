@@ -32,8 +32,4 @@ impl super::CtrlFunction for Composed {
         }
         vec
     }
-
-    fn trigger(&self, samples: usize) -> Vec<f64> {
-        self.get_vec(time::TimeStamp::zero(), samples)
-    }
 }
