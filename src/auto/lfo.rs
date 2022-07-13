@@ -1,9 +1,9 @@
-use crate::{consts::SAMPLE_RATE, time, utils::oscs};
+use crate::{consts::SAMPLE_RATE, time, utils::oscs::Oscillator};
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
 
 #[derive(Debug)]
 pub struct Lfo {
-    oscillator: Box<dyn oscs::Oscillator>,
+    oscillator: Oscillator,
     freq: super::Control,
     modulation: super::Control,
     phase_shift: f64,
@@ -13,9 +13,9 @@ pub struct Lfo {
 impl Lfo {
     pub fn new() -> Self {
         Self {
-            oscillator: Box::new(oscs::ModSaw::new(1.0)),
+            oscillator: Oscillator::ModSaw,
             freq: super::Control::from_values(0.2, (0.001, 20.0)),
-            modulation: super::Control::val_in_unit(0.5),
+            modulation: super::Control::from_val_in_unit(0.5),
             phase_shift: 0.0,
             time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }

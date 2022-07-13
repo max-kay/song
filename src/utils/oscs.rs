@@ -1,17 +1,51 @@
+use factorial::Factorial;
+
 use crate::consts::SAMPLE_RATE;
 use std::{
     f64::consts::{PI, TAU},
     fmt::Debug,
 };
 
-pub trait Oscillator: Debug {
-    fn get_sample(&self, phase: f64, modulation: f64) -> f64;
+#[derive(Debug)]
+pub enum Oscillator {
+    Sine,
+    ModSquare,
+    ModSaw,
+}
 
-    fn play(&self, freq: &Vec<f64>, modulation: &Vec<f64>, samples: usize) -> Vec<f64> {
+impl Default for Oscillator {
+    fn default() -> Self {
+        Self::Sine
+    }
+}
+
+impl Oscillator {
+    pub fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
+        use Oscillator::*;
+        match self {
+            Sine => aproximate_sin::<5>(phase),
+            ModSquare => {
+                if phase < modulation * TAU {
+                    1.0
+                } else {
+                    -1.0
+                }
+            }
+            ModSaw => {
+                if phase < modulation * TAU {
+                    phase / modulation / PI - 1.0
+                } else {
+                    (phase - (modulation + 1.0) * PI) / (modulation - 1.0) / PI
+                }
+            }
+        }
+    }
+
+    pub fn play(&self, freq: &Vec<f64>, modulation: &Vec<f64>, samples: usize) -> Vec<f64> {
         self.play_shifted(freq, modulation, samples, 0.0)
     }
 
-    fn play_shifted(
+    pub fn play_shifted(
         &self,
         freq: &Vec<f64>,
         modulation: &Vec<f64>,
@@ -30,55 +64,10 @@ pub trait Oscillator: Debug {
     }
 }
 
-#[derive(Debug)]
-pub struct Sine(f64);
-
-impl Oscillator for Sine {
-    #[inline(always)]
-    fn get_sample(&self, phase: f64, _modulation: f64) -> f64 {
-        phase.sin() * self.0
+fn aproximate_sin<const ITTERATIONS: u8>(x: f64) -> f64 {
+    let mut result = 0.0;
+    for i in 0..ITTERATIONS {
+        result += x.powi(i as i32) / (Factorial::factorial(&i) as f64)
     }
-}
-impl Sine {
-    pub fn new(gain: f64) -> Self {
-        Self(gain)
-    }
-}
-
-#[derive(Debug)]
-pub struct ModSquare(f64);
-
-impl Oscillator for ModSquare {
-    #[inline(always)]
-    fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
-        if phase < modulation * TAU {
-            self.0
-        } else {
-            -self.0
-        }
-    }
-}
-impl ModSquare {
-    pub fn new(gain: f64) -> Self {
-        Self(gain)
-    }
-}
-
-#[derive(Debug)]
-pub struct ModSaw(f64);
-
-impl Oscillator for ModSaw {
-    #[inline(always)]
-    fn get_sample(&self, phase: f64, modulation: f64) -> f64 {
-        if phase < modulation * TAU {
-            (phase / modulation / PI - 1.0) * self.0
-        } else {
-            ((phase - (modulation + 1.0) * PI) / (modulation - 1.0) / PI) * self.0
-        }
-    }
-}
-impl ModSaw {
-    pub fn new(gain: f64) -> Self {
-        Self(gain)
-    }
+    result
 }

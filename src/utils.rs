@@ -17,11 +17,13 @@ pub fn smooth_step(x: f64) -> f64 {
     3.0 * x * x - 2.0 * x * x * x
 }
 
-// pub trait IntoSuperTrait<T: ?Sized> {
-//     fn as_super(&self) -> &T;
-//     fn as_super_mut(&mut self) -> &mut T;
-//     fn into_super(self: Box<Self>) -> Box<T>;
-// }
+#[inline(always)]
+pub fn add_elementwise(v1: &mut Vec<f64>, v2: Vec<f64>) {
+    debug_assert_eq!(v1.len(), v2.len());
+    for (x2, x1) in v2.into_iter().zip(v1) {
+        *x1 += x2
+    }
+}
 
 pub fn user_input(prompt: &str) -> String {
     println!("{}", prompt);

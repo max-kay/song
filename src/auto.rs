@@ -1,4 +1,4 @@
-use crate::time::{self, TimeKeeper};
+use crate::time::{self, TimeKeeper, TimeStamp};
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc, vec};
 
 pub mod composed;
@@ -44,7 +44,7 @@ impl Control {
         }
     }
 
-    pub fn val_in_unit(value: f64) -> Self {
+    pub fn from_val_in_unit(value: f64) -> Self {
         assert!((0.0..=1.0).contains(&value));
         Self {
             value,
@@ -95,11 +95,11 @@ impl Control {
         self.put_in_range(val)
     }
 
-    pub fn get_vec(&self, time: time::TimeStamp, samples: usize) -> Vec<f64> {
+    pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
         match &self.connection {
             Some(time_function) => time_function
                 .borrow()
-                .get_vec(time, samples)
+                .get_vec(start, samples)
                 .into_iter()
                 .map(|x| self.put_in_range(x))
                 .collect(),

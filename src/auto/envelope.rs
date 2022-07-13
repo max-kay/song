@@ -43,7 +43,7 @@ impl Envelope {
         Self {
             attack: Some(Control::from_val_in_range(attack, (0.0, 25.0))),
             decay: Some(Control::from_val_in_range(decay, (0.0, 25.0))),
-            sustain: Some(Control::val_in_unit(sustain)),
+            sustain: Some(Control::from_val_in_unit(sustain)),
             sus_decay: None,
             release: Some(Control::from_val_in_range(release, (0.0, 25.0))),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
@@ -60,8 +60,8 @@ impl Envelope {
         Self {
             attack: Some(Control::from_val_in_range(attack, (0.0, 25.0))),
             decay: Some(Control::from_val_in_range(decay, (0.0, 25.0))),
-            sustain: Some(Control::val_in_unit(sustain)),
-            sus_decay: Some(Control::val_in_unit(sus_decay)),
+            sustain: Some(Control::from_val_in_unit(sustain)),
+            sus_decay: Some(Control::from_val_in_unit(sus_decay)),
             release: Some(Control::from_val_in_range(release, (0.0, 25.0))),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }

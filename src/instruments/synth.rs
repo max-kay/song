@@ -1,34 +1,91 @@
 use super::MidiInstrument;
 use crate::{
-    auto::{self, AutomationManager, CtrlFunction},
+    auto::{
+        self, AutomationKeeper, AutomationManager, Constant, Control, CtrlFunction, Envelope, Lfo,
+    },
     effects,
-    time::{self, TimeKeeper},
+    time::{self, TimeKeeper, TimeManager, TimeStamp},
     tracks::midi,
-    utils::oscs,
+    utils::{self, oscs::Oscillator},
     wave::{self, Wave},
 };
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
+
+#[derive(Debug)]
+pub struct OscPanel<W: Wave> {
+    phantom: PhantomData<W>,
+    oscillators: Vec<Oscillator>,
+    weights: Vec<Control>,
+    pitch_offsets: Vec<Control>,
+}
+
+impl<W: Wave> Default for OscPanel<W> {
+    fn default() -> Self {
+        Self {
+            phantom: PhantomData::<W>,
+            oscillators: vec![Oscillator::default()],
+            weights: vec![Control::from_val_in_unit(1.0)],
+            pitch_offsets: vec![Control::from_val_in_range(0.0, (-4800.0, 4800.0))],
+        }
+    }
+}
+
+impl<W: Wave> OscPanel<W> {
+    pub fn play(
+        &self,
+        freq: Vec<f64>,
+        modulation: Vec<f64>,
+        start: TimeStamp,
+        samples: usize,
+    ) -> W {
+        let mut wave = Vec::with_capacity(samples);
+
+        for ((osc, weigth), offset) in self
+            .oscillators
+            .iter()
+            .zip(&self.weights)
+            .zip(&self.pitch_offsets)
+        {
+            let freq = offset
+                .get_vec(start, samples)
+                .into_iter()
+                .zip(&freq)
+                .map(|(x, y)| y * 2_f64.powf(x / 1200.0))
+                .collect();
+
+            let new_wave = osc
+                .play(&freq, &modulation, samples)
+                .into_iter()
+                .zip(weigth.get_vec(start, samples))
+                .map(|(x, y)| x * y)
+                .collect();
+
+            utils::add_elementwise(&mut wave, new_wave)
+        }
+        W::from_vec(wave)
+    }
+}
 
 #[derive(Debug)]
 pub struct SynthAutomation {
-    main_envelope: Rc<RefCell<auto::Envelope>>,
-    alt_envelope: Rc<RefCell<auto::Envelope>>,
-    current_velocity: Rc<RefCell<auto::Constant>>,
-    lfo1: Rc<RefCell<auto::Lfo>>,
-    lfo2: Rc<RefCell<auto::Lfo>>,
-    track_automation: Rc<RefCell<auto::AutomationManager>>,
+    main_envelope: Rc<RefCell<Envelope>>,
+    alt_envelope: Rc<RefCell<Envelope>>,
+    current_velocity: Rc<RefCell<Constant>>,
+    lfo1: Rc<RefCell<Lfo>>,
+    lfo2: Rc<RefCell<Lfo>>,
+    track_automation: Rc<RefCell<AutomationManager>>,
     time_manager: Rc<RefCell<time::TimeManager>>,
 }
 
 impl SynthAutomation {
     fn new() -> Self {
         Self {
-            main_envelope: Rc::new(RefCell::new(auto::Envelope::default())),
-            alt_envelope: Rc::new(RefCell::new(auto::Envelope::default())),
-            current_velocity: Rc::new(RefCell::new(auto::Constant::default())),
-            lfo1: Rc::new(RefCell::new(auto::Lfo::default())),
-            lfo2: Rc::new(RefCell::new(auto::Lfo::default())),
-            track_automation: Rc::new(RefCell::new(auto::AutomationManager::new())),
+            main_envelope: Rc::new(RefCell::new(Envelope::default())),
+            alt_envelope: Rc::new(RefCell::new(Envelope::default())),
+            current_velocity: Rc::new(RefCell::new(Constant::default())),
+            lfo1: Rc::new(RefCell::new(Lfo::default())),
+            lfo2: Rc::new(RefCell::new(Lfo::default())),
+            track_automation: Rc::new(RefCell::new(AutomationManager::new())),
             time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }
     }
@@ -41,7 +98,7 @@ impl SynthAutomation {
 }
 
 impl TimeKeeper for SynthAutomation {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager);
         (*self.lfo1)
             .borrow_mut()
@@ -58,7 +115,7 @@ impl TimeKeeper for SynthAutomation {
     }
 }
 
-impl auto::AutomationKeeper for SynthAutomation {
+impl AutomationKeeper for SynthAutomation {
     fn set_automation_manager(&mut self, automation_manager: Rc<RefCell<AutomationManager>>) {
         self.track_automation = Rc::clone(&automation_manager)
     }
@@ -69,27 +126,25 @@ pub struct Synthesizer<'a, W: Wave> {
     name: String,
     effects: effects::EffectNode<W>,
     effect_ctrl: effects::CtrlPanel<'a>,
-    oscillators: Vec<Box<dyn oscs::Oscillator>>,
+    oscillators: OscPanel<W>,
     local_automation: Rc<RefCell<SynthAutomation>>,
     pitch_control: auto::Control,
     modulation_control: auto::Control,
     volume_control: auto::Control,
     time_manager: Rc<RefCell<time::TimeManager>>,
-    pitch_wheel_range: f64, // in cents
 }
 
 impl<W: Wave> Synthesizer<'_, W> {
-    pub fn new(name: String, oscillators: Vec<Box<dyn oscs::Oscillator>>) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
             effects: effects::EffectNode::Bypass,
             effect_ctrl: effects::CtrlPanel::Bypass,
             local_automation: Rc::new(RefCell::new(SynthAutomation::new())),
-            pitch_control: auto::Control::val_in_unit(0.5),
-            modulation_control: auto::Control::val_in_unit(0.5),
-            volume_control: auto::Control::val_in_unit(1.0),
-            oscillators,
-            pitch_wheel_range: 2.0,
+            pitch_control: auto::Control::from_val_in_unit(0.5),
+            modulation_control: auto::Control::from_val_in_unit(0.5),
+            volume_control: auto::Control::from_val_in_unit(1.0),
+            oscillators: OscPanel::default(),
             time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
         }
     }
@@ -134,14 +189,16 @@ impl<W: Wave> Synthesizer<'_, W> {
             .pitch_control
             .get_vec(note_on, envelope.len())
             .into_iter()
-            .map(|x| freq * 2_f64.powf((x * 2.0 - 1.0) * self.pitch_wheel_range / 1200.0))
+            .map(|x| freq * 2_f64.powf(x / 1200.0))
             .collect();
 
         let modulation = self.modulation_control.get_vec(note_on, envelope.len());
         let mut wave = W::zeros(envelope.len());
-        for osc in &self.oscillators {
-            wave.add_consuming(W::from_vec(osc.play(&freq, &modulation, envelope.len())), 0);
-        }
+        wave.add_consuming(
+            self.oscillators
+                .play(freq, modulation, note_on, envelope.len()),
+            0,
+        );
         wave.scale_by_vec(self.volume_control.get_vec(note_on, envelope.len()));
         wave.scale_by_vec(envelope);
         self.effects.apply(&mut wave, &self.effect_ctrl, note_on);
@@ -217,8 +274,8 @@ impl<'a, W: Wave> Synthesizer<'a, W> {
 
     pub fn save_test_chord(&self) {
         let wave = self.play_test_chord();
-        let path = &format!("out/synthtest/{}_chord.wav", self.name);
-        let path = Path::new(path);
+        let path = format!("out/synthtest/{}_chord.wav", self.name);
+        let path = Path::new(&path);
         wave.save(path).expect("error while saving test chord");
     }
 }
