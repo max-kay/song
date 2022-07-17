@@ -29,6 +29,24 @@ pub fn add_elementwise<T: std::ops::AddAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
     }
 }
 
+pub fn max_abs_f64(vec: &[f64]) -> f64 {
+    let max = vec
+        .iter()
+        .fold(None, |r, &val| match r {
+            Some(p) => Some(f64::max(p, val)),
+            None => Some(val),
+        })
+        .unwrap_or(0.0);
+    let min = vec
+        .iter()
+        .fold(None, |r, &val| match r {
+            Some(p) => Some(f64::min(p, val)),
+            None => Some(val),
+        })
+        .unwrap_or(0.0);
+    f64::max(f64::abs(max), f64::abs(min))
+}
+
 pub fn user_input(prompt: &str) -> String {
     println!("{}", prompt);
 

@@ -323,6 +323,6 @@ impl<W: Wave> Synthesizer<W> {
         let wave = self.play_test_chord();
         let path = format!("out/synthtest/{}_chord.wav", self.name);
         let path = Path::new(&path);
-        wave.save(path).expect("error while saving test chord");
+        wave.save(path);
     }
 }

@@ -1,7 +1,7 @@
 use crate::wave::Wave;
 use std::path::Path;
 
-pub fn save_wave<W: Wave>(wave: W, path: &Path) -> Result<(), std::io::Error> {
+pub fn save_wave<W: Wave>(wave: W, path: &Path) {
     wave.save(path)
 }
 
