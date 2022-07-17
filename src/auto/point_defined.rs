@@ -2,7 +2,7 @@ use crate::{
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 use super::CtrlFunction;
 
@@ -46,9 +46,9 @@ impl PartialEq for AutomationPoint {
 impl Eq for AutomationPoint {}
 
 impl PartialOrd for AutomationPoint {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match self.time.partial_cmp(&other.time) {
-            Some(core::cmp::Ordering::Equal) => {}
+            Some(Ordering::Equal) => {}
             ord => return ord,
         }
         self.value.partial_cmp(&other.value)
@@ -56,7 +56,7 @@ impl PartialOrd for AutomationPoint {
 }
 
 impl Ord for AutomationPoint {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other)
             .expect("error in Ord of AutomationPoint")
     }

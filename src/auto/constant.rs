@@ -1,4 +1,4 @@
-use crate::time;
+use crate::time::{self, TimeManager, TimeStamp};
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Default)]
@@ -11,15 +11,15 @@ impl Constant {
 }
 
 impl time::TimeKeeper for Constant {
-    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<time::TimeManager>>) {}
+    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
 impl super::CtrlFunction for Constant {
-    fn get_value(&self, _time: time::TimeStamp) -> f64 {
+    fn get_value(&self, _time: TimeStamp) -> f64 {
         self.0
     }
 
-    fn get_vec(&self, _start: time::TimeStamp, samples: usize) -> Vec<f64> {
+    fn get_vec(&self, _start: TimeStamp, samples: usize) -> Vec<f64> {
         vec![self.0; samples]
     }
 }

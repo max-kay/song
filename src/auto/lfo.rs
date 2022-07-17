@@ -1,30 +1,43 @@
 use crate::{
     consts::SAMPLE_RATE,
-    time::{self, TimeStamp},
+    time::{self, TimeManager, TimeStamp},
     utils::oscs::Oscillator,
 };
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
 
-use super::CtrlFunction;
+use super::{Control, ControlError, CtrlFunction};
+
+const FREQ_RANGE: (f64, f64) = (0.001, 20.0);
 
 #[derive(Debug)]
 pub struct Lfo {
     oscillator: Oscillator,
-    freq: super::Control,
-    modulation: super::Control,
+    freq: Control,
+    modulation: Control,
     phase_shift: f64,
-    time_manager: Rc<RefCell<time::TimeManager>>,
+    time_manager: Rc<RefCell<TimeManager>>,
 }
 
 impl Lfo {
-    pub fn new() -> Self {
-        Self {
-            oscillator: Oscillator::ModSaw,
-            freq: super::Control::from_values(0.2, (0.001, 20.0)),
-            modulation: super::Control::from_val_in_unit(0.5),
-            phase_shift: 0.0,
-            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
-        }
+    pub fn new(
+        oscillator: Oscillator,
+        freq: f64,
+        modulation: f64,
+        phase_shift: f64,
+    ) -> Result<Self, ControlError> {
+        Ok(Self {
+            oscillator,
+            freq: match Control::from_val_in_range(freq, FREQ_RANGE) {
+                Ok(ctrl) => ctrl,
+                Err(err) => return Err(err.set_origin("Lfo", "Frequency")),
+            },
+            modulation: match Control::from_val_in_unit(modulation) {
+                Ok(ctrl) => ctrl,
+                Err(err) => return Err(err.set_origin("Lfo", "Modulation")),
+            },
+            phase_shift,
+            time_manager: Rc::new(RefCell::new(TimeManager::default())),
+        })
     }
 }
 
@@ -39,14 +52,14 @@ impl Lfo {
 }
 
 impl time::TimeKeeper for Lfo {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager)
     }
 }
 
 impl Default for Lfo {
     fn default() -> Self {
-        Self::new()
+        Self::new(Oscillator::ModSaw, 2.0, 0.0, 0.0).expect("error in Lfo::Default")
     }
 }
 

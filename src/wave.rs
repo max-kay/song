@@ -25,6 +25,7 @@ pub trait Wave: Clone + Debug {
     fn is_empty(&self) -> bool;
 
     fn normalize(&mut self);
+    fn peak_normalize(&mut self);
 
     fn save(&self, path: &Path) -> Result<(), std::io::Error>;
 }
@@ -144,12 +145,33 @@ impl Wave for Mono {
         self.wave = self.wave.iter().map(|x| x / norm).collect();
     }
 
+    fn peak_normalize(&mut self) {
+        let max = self
+            .wave
+            .iter()
+            .fold(None, |r, &val| match r {
+                Some(p) => Some(f64::max(p, val)),
+                None => Some(val),
+            })
+            .unwrap_or(0.0);
+        let min = self
+            .wave
+            .iter()
+            .fold(None, |r, &val| match r {
+                Some(p) => Some(f64::min(p, val)),
+                None => Some(val),
+            })
+            .unwrap_or(0.0);
+        let scale = 0.9 / f64::max(f64::abs(max), f64::abs(min));
+        self.scale(scale)
+    }
+
     fn save(&self, path: &Path) -> Result<(), std::io::Error> {
         let header = wav::Header::new(WAV_FORMAT_PCM, 1, SAMPLE_RATE as u32, 16);
         let track = wav::BitDepth::Sixteen(
             self.get_vec()
                 .into_iter()
-                .map(|x| (x * (i16::MAX as f64) / 4.0) as i16)
+                .map(|x| (x * (i16::MAX as f64)) as i16)
                 .collect(),
         );
         let mut out_file = File::create(path).expect("Error while making file!");

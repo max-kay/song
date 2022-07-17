@@ -102,7 +102,7 @@ impl TimeKeeper for VolCtrl {
 
 impl Controler for VolCtrl {
     fn set_defaults(&mut self) {
-        self.volume = Control::from_val_in_range(1.0, VOL_RANGE)
+        self.volume = Control::from_val_in_range(1.0, VOL_RANGE).unwrap()
     }
 }
 

@@ -1,5 +1,11 @@
-use crate::time::{self, TimeKeeper, TimeStamp};
-use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc, vec};
+use crate::time::{self, TimeKeeper, TimeManager, TimeStamp};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt::{Debug, Display},
+    rc::Rc,
+    vec,
+};
 
 pub mod composed;
 pub mod constant;
@@ -35,40 +41,36 @@ pub struct Control {
 }
 
 impl Control {
-    pub fn new(value: f64, range: (f64, f64), connection: Rc<RefCell<dyn CtrlFunction>>) -> Self {
-        assert!((0.0..=1.0).contains(&value), "control_value out of range");
-        Self {
-            value,
+    pub fn new(
+        value_in_range: f64,
+        range: (f64, f64),
+        connection: Rc<RefCell<dyn CtrlFunction>>,
+    ) -> Result<Self, ControlError> {
+        let new_value = (value_in_range - range.0) / (range.1 - range.0);
+        if !(0.0..=1.0).contains(&new_value) {
+            return Err(ControlError::new(value_in_range, range));
+        }
+        Ok(Self {
+            value: new_value,
             range,
             connection: Some(Rc::clone(&connection)),
-        }
+        })
     }
 
-    pub fn from_val_in_unit(value: f64) -> Self {
-        assert!((0.0..=1.0).contains(&value), "control_value out of range");
-        Self {
-            value,
-            range: (0.0, 1.0),
-            connection: None,
-        }
+    pub fn from_val_in_unit(value: f64) -> Result<Self, ControlError> {
+        Self::from_val_in_range(value, (0.0, 1.0))
     }
 
-    pub fn from_values(value: f64, range: (f64, f64)) -> Self {
-        assert!((0.0..=1.0).contains(&value), "control_value out of range");
-        Self {
-            value,
-            range,
-            connection: None,
-        }
-    }
-
-    pub fn from_val_in_range(value: f64, range: (f64, f64)) -> Self {
-        let value = (value - range.0) / (range.1 - range.0);
-        assert!((0.0..=1.0).contains(&value));
-        Self {
-            value,
-            range,
-            connection: None,
+    pub fn from_val_in_range(value: f64, range: (f64, f64)) -> Result<Self, ControlError> {
+        let new_value = (value - range.0) / (range.1 - range.0);
+        if !(0.0..=1.0).contains(&new_value) {
+            Err(ControlError::new(value, range))
+        } else {
+            Ok(Self {
+                value: new_value,
+                range,
+                connection: None,
+            })
         }
     }
 
@@ -106,6 +108,24 @@ impl Control {
             None => vec![self.put_in_range(self.value); samples],
         }
     }
+
+    pub fn set_value(&mut self, value: f64) -> Result<(), ControlError> {
+        let new_value = (value - self.range.0) / (self.range.1 - self.range.0);
+        if !(0.0..=1.0).contains(&new_value) {
+            Err(ControlError::new(value, self.range))
+        } else {
+            self.value = value;
+            Ok(())
+        }
+    }
+
+    pub fn get_range(&self) -> (f64, f64) {
+        self.range
+    }
+
+    pub fn set_range(&mut self, range: (f64, f64)) {
+        self.range = range;
+    }
 }
 
 impl Default for Control {
@@ -118,11 +138,59 @@ impl Default for Control {
     }
 }
 
-impl time::TimeKeeper for Control {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+impl TimeKeeper for Control {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         if let Some(time_function) = &self.connection {
             time_function.borrow_mut().set_time_manager(time_manager)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct ControlError {
+    path: Vec<String>,
+    origin: String,
+    control: String,
+    value: f64,
+    range: (f64, f64),
+}
+
+impl ControlError {
+    pub fn new(value: f64, range: (f64, f64)) -> Self {
+        Self {
+            path: Vec::new(),
+            origin: String::new(),
+            control: String::new(),
+            value,
+            range,
+        }
+    }
+
+    pub fn set_origin(mut self, origin: &str, control: &str) -> Self {
+        self.origin.push_str(origin);
+        self.control.push_str(control);
+        self
+    }
+
+    pub fn push_location(mut self, location: &str) -> Self {
+        self.path.push(location.to_string());
+        self
+    }
+}
+
+impl Display for ControlError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The value of {} in {} was set to {}, which is not in range from {} to {}!\n    full path to value: {}/{}/{}",
+            self.control,
+            self.origin,
+            self.value,
+            self.range.0,
+            self.range.1,
+            self.path.join("/"),
+            self.origin,
+            self.control)
     }
 }
 
@@ -158,7 +226,7 @@ impl Default for AutomationManager {
 }
 
 impl TimeKeeper for AutomationManager {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         for control in self.channels.values_mut() {
             control
                 .borrow_mut()

@@ -122,8 +122,8 @@ impl TimeKeeper for DelayCrtl {
 
 impl Controler for DelayCrtl {
     fn set_defaults(&mut self) {
-        self.gain = Control::from_val_in_range(0.6, GAIN_RANGE);
-        self.delta_t = Control::from_val_in_range(0.6, DELTA_T_RANGE)
+        self.gain = Control::from_val_in_range(0.6, GAIN_RANGE).unwrap();
+        self.delta_t = Control::from_val_in_range(0.6, DELTA_T_RANGE).unwrap()
     }
 }
 

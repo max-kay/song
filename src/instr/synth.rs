@@ -7,9 +7,12 @@ use crate::{
     time::{self, TimeKeeper, TimeManager, TimeStamp},
     tracks::midi,
     utils::{self, oscs::Oscillator},
-    wave::{self, Wave},
+    wave::Wave,
 };
 use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
+
+const PITCH_WHEEL_RANGE: (f64, f64) = (-4800.0, 4800.0);
+const VOL_CTRL_RANGE: (f64, f64) = (0.0, 5.0);
 
 #[derive(Debug)]
 pub struct OscPanel<W: Wave> {
@@ -24,8 +27,8 @@ impl<W: Wave> Default for OscPanel<W> {
         Self {
             phantom: PhantomData::<W>,
             oscillators: vec![Oscillator::default()],
-            weights: vec![Control::from_val_in_unit(1.0)],
-            pitch_offsets: vec![Control::from_val_in_range(0.0, (-4800.0, 4800.0))],
+            weights: vec![Control::from_val_in_unit(1.0).unwrap()],
+            pitch_offsets: vec![Control::from_val_in_range(0.0, (-4800.0, 4800.0)).unwrap()],
         }
     }
 }
@@ -68,8 +71,8 @@ impl<W: Wave> OscPanel<W> {
     pub fn add_osc(&mut self, oscillator: Oscillator) {
         self.oscillators.push(oscillator);
         self.pitch_offsets
-            .push(Control::from_val_in_range(0.0, (-4800.0, 4800.0)));
-        self.weights.push(Control::from_val_in_unit(1.0));
+            .push(Control::from_val_in_range(0.0, PITCH_WHEEL_RANGE).unwrap());
+        self.weights.push(Control::from_val_in_unit(1.0).unwrap());
     }
 }
 
@@ -81,7 +84,7 @@ pub struct SynthAutomation {
     lfo1: Rc<RefCell<Lfo>>,
     lfo2: Rc<RefCell<Lfo>>,
     track_automation: Rc<RefCell<AutomationManager>>,
-    time_manager: Rc<RefCell<time::TimeManager>>,
+    time_manager: Rc<RefCell<TimeManager>>,
 }
 
 impl SynthAutomation {
@@ -93,7 +96,7 @@ impl SynthAutomation {
             lfo1: Rc::new(RefCell::new(Lfo::default())),
             lfo2: Rc::new(RefCell::new(Lfo::default())),
             track_automation: Rc::new(RefCell::new(AutomationManager::new())),
-            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 }
@@ -107,16 +110,16 @@ impl SynthAutomation {
 impl TimeKeeper for SynthAutomation {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager);
-        (*self.lfo1)
+        self.lfo1
             .borrow_mut()
             .set_time_manager(Rc::clone(&time_manager));
-        (*self.lfo2)
+        self.lfo2
             .borrow_mut()
             .set_time_manager(Rc::clone(&time_manager));
-        (*self.main_envelope)
+        self.main_envelope
             .borrow_mut()
             .set_time_manager(Rc::clone(&time_manager));
-        (*self.alt_envelope)
+        self.alt_envelope
             .borrow_mut()
             .set_time_manager(Rc::clone(&time_manager))
     }
@@ -137,7 +140,7 @@ pub struct Synthesizer<W: Wave> {
     pitch_control: auto::Control,
     modulation_control: auto::Control,
     volume_control: auto::Control,
-    time_manager: Rc<RefCell<time::TimeManager>>,
+    time_manager: Rc<RefCell<TimeManager>>,
 }
 
 impl<W: Wave> Synthesizer<W> {
@@ -146,17 +149,17 @@ impl<W: Wave> Synthesizer<W> {
             name,
             effects: effects::EffectNode::Bypass,
             local_automation: Rc::new(RefCell::new(SynthAutomation::new())),
-            pitch_control: auto::Control::from_val_in_unit(0.5),
-            modulation_control: auto::Control::from_val_in_unit(0.5),
-            volume_control: auto::Control::from_val_in_unit(1.0),
+            pitch_control: auto::Control::from_val_in_unit(0.5).unwrap(),
+            modulation_control: auto::Control::from_val_in_unit(0.5).unwrap(),
+            volume_control: auto::Control::from_val_in_unit(1.0).unwrap(),
             oscillators: OscPanel::default(),
-            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 }
 
-impl<W: wave::Wave> time::TimeKeeper for Synthesizer<W> {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+impl<W: Wave> time::TimeKeeper for Synthesizer<W> {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.effects.set_time_manager(Rc::clone(&time_manager));
         (*self.local_automation)
             .borrow_mut()
@@ -169,13 +172,7 @@ impl<W: wave::Wave> time::TimeKeeper for Synthesizer<W> {
 }
 
 impl<W: Wave> Synthesizer<W> {
-    fn play_freq(
-        &self,
-        note_on: time::TimeStamp,
-        note_off: time::TimeStamp,
-        freq: f64,
-        velocity: f64,
-    ) -> W {
+    fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> W {
         (*self.local_automation).borrow_mut().set_velocity(velocity);
         let sus_samples = self
             .time_manager
@@ -210,8 +207,8 @@ impl<W: Wave> Synthesizer<W> {
     }
 }
 
-impl<W: Wave> auto::AutomationKeeper for Synthesizer<W> {
-    fn set_automation_manager(&mut self, automation_manager: Rc<RefCell<auto::AutomationManager>>) {
+impl<W: Wave> AutomationKeeper for Synthesizer<W> {
+    fn set_automation_manager(&mut self, automation_manager: Rc<RefCell<AutomationManager>>) {
         self.local_automation
             .borrow_mut()
             .set_automation_manager(Rc::clone(&automation_manager))
@@ -235,7 +232,7 @@ impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
     }
 }
 
-impl<W: wave::Wave> Synthesizer<W> {
+impl<W: Wave> Synthesizer<W> {
     pub fn get_main_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
         auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().main_envelope))
     }
@@ -300,6 +297,14 @@ impl<W: Wave> Synthesizer<W> {
             .lfo2
             .borrow_mut()
             .set(lfo);
+    }
+
+    pub fn set_vol_control(&mut self, ctrl_func: Rc<RefCell<dyn CtrlFunction>>) {
+        self.volume_control = Control::new(1.0, VOL_CTRL_RANGE, ctrl_func).unwrap()
+    }
+
+    pub fn set_pitch_control(&mut self, ctrl_func: Rc<RefCell<dyn CtrlFunction>>) {
+        self.volume_control = Control::new(0.0, PITCH_WHEEL_RANGE, ctrl_func).unwrap()
     }
 }
 
