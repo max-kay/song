@@ -70,8 +70,11 @@ impl CtrlFunction for Lfo {
                 / (SAMPLE_RATE as f64))
                 + self.phase_shift)
                 % TAU;
-        self.oscillator
+        (self
+            .oscillator
             .get_sample(phase, self.modulation.get_value(time))
+            + 1.0)
+            / 2.0
     }
 
     fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
@@ -83,6 +86,7 @@ impl CtrlFunction for Lfo {
                 self.phase_shift,
             )
             .into_iter()
+            .map(|x| (x + 1.0) / 2.0)
             .collect()
     }
 }
