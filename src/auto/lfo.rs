@@ -16,6 +16,7 @@ pub struct Lfo {
     modulation: Control,
     phase_shift: f64,
     time_manager: Rc<RefCell<TimeManager>>,
+    id: usize,
 }
 
 impl Lfo {
@@ -37,6 +38,7 @@ impl Lfo {
             },
             phase_shift,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
+            id: super::get_ctrl_id(),
         })
     }
 }
@@ -88,5 +90,16 @@ impl CtrlFunction for Lfo {
             .into_iter()
             .map(|x| (x + 1.0) / 2.0)
             .collect()
+    }
+
+    fn get_id(&self) -> usize {
+        self.id
+    }
+
+    fn get_sub_ids(&self) -> Vec<usize> {
+        let mut ids = Vec::new();
+        ids.append(&mut self.freq.get_ids());
+        ids.append(&mut self.modulation.get_ids());
+        ids
     }
 }

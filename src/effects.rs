@@ -1,5 +1,5 @@
 use crate::{
-    auto::Control,
+    auto::{Control},
     time::{TimeKeeper, TimeManager, TimeStamp},
     wave::Wave,
 };
@@ -12,20 +12,15 @@ pub mod volume;
 pub use delay::Delay;
 
 trait EffMarker<W: Wave>: Effect<W> + Default {}
-trait EffCtrlMarker: Controler + Default {}
 
-pub trait Effect<W: Wave>: TimeKeeper + Debug {
+pub trait Effect<W: Wave>: Debug + TimeKeeper {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
-    fn get_controls(&mut self) -> &mut dyn Controler;
     fn on(&mut self);
     fn off(&mut self);
     fn toggle(&mut self);
 }
 
-pub trait Controler: TimeKeeper {
-    fn set_defaults(&mut self);
-}
 
 #[derive(Debug)]
 pub enum EffectNode<W: Wave> {

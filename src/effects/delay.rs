@@ -1,4 +1,4 @@
-use super::{Control, Controler, EffCtrlMarker, EffMarker, Effect};
+use super::{Control, EffMarker, Effect};
 use crate::{
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
@@ -15,7 +15,8 @@ pub struct Delay<W: Wave> {
     phantom: PhantomData<W>,
     time_manager: Rc<RefCell<TimeManager>>,
     on: bool,
-    controler: DelayCrtl,
+    gain: Control,
+    delta_t: Control,
 }
 
 impl<W: Wave> Delay<W> {
@@ -24,7 +25,8 @@ impl<W: Wave> Delay<W> {
             phantom: PhantomData,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
             on: true,
-            controler: DelayCrtl::default(),
+            gain: Control::from_val_in_range(0.6, GAIN_RANGE).unwrap(),
+            delta_t: Control::from_val_in_range(0.6, DELTA_T_RANGE).unwrap(),
         }
     }
 }
@@ -38,7 +40,8 @@ impl<W: Wave> Default for Delay<W> {
 impl<W: Wave> TimeKeeper for Delay<W> {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager);
-        self.controler.set_time_manager(time_manager)
+        self.gain.set_time_manager(Rc::clone(&time_manager));
+        self.delta_t.set_time_manager(Rc::clone(&time_manager));
     }
 }
 
@@ -46,8 +49,8 @@ impl<W: Wave> Effect<W> for Delay<W> {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
         let mut source = wave.clone();
         let mut current_time = time_triggered;
-        let mut gain: f64 = self.controler.get_gain_ctrl().get_value(time_triggered);
-        let mut delta_t = self.controler.get_delta_t_ctrl().get_value(time_triggered);
+        let mut gain: f64 = self.gain.get_value(time_triggered);
+        let mut delta_t = self.delta_t.get_value(time_triggered);
         while gain > SMALLEST_GAIN_ALLOWED {
             source.scale(gain);
             wave.add(&source, utils::seconds_to_samples(delta_t));
@@ -55,17 +58,14 @@ impl<W: Wave> Effect<W> for Delay<W> {
                 .time_manager
                 .borrow()
                 .add_seconds_to_stamp(current_time, delta_t);
-            delta_t += self.controler.get_delta_t_ctrl().get_value(current_time);
-            gain *= self.controler.get_gain_ctrl().get_value(current_time);
+            delta_t += self.delta_t.get_value(current_time);
+            gain *= self.gain.get_value(current_time);
         }
     }
 
     fn set_defaults(&mut self) {
-        self.controler.set_defaults()
-    }
-
-    fn get_controls(&mut self) -> &mut dyn Controler {
-        &mut self.controler
+        self.gain = Control::from_val_in_range(0.6, GAIN_RANGE).unwrap();
+        self.delta_t = Control::from_val_in_range(0.6, DELTA_T_RANGE).unwrap();
     }
 
     fn on(&mut self) {
@@ -81,51 +81,4 @@ impl<W: Wave> Effect<W> for Delay<W> {
     }
 }
 
-#[derive(Debug)]
-pub struct DelayCrtl {
-    gain: Control,
-    delta_t: Control,
-}
-
-impl DelayCrtl {
-    pub fn new() -> Self {
-        let mut ctrl = Self {
-            gain: Default::default(),
-            delta_t: Default::default(),
-        };
-        ctrl.set_defaults();
-        ctrl
-    }
-}
-
-impl DelayCrtl {
-    fn get_gain_ctrl(&self) -> &Control {
-        &self.gain
-    }
-    fn get_delta_t_ctrl(&self) -> &Control {
-        &self.delta_t
-    }
-}
-
-impl Default for DelayCrtl {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TimeKeeper for DelayCrtl {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.gain.set_time_manager(Rc::clone(&time_manager));
-        self.delta_t.set_time_manager(Rc::clone(&time_manager));
-    }
-}
-
-impl Controler for DelayCrtl {
-    fn set_defaults(&mut self) {
-        self.gain = Control::from_val_in_range(0.6, GAIN_RANGE).unwrap();
-        self.delta_t = Control::from_val_in_range(0.6, DELTA_T_RANGE).unwrap()
-    }
-}
-
 impl<W: Wave> EffMarker<W> for Delay<W> {}
-impl EffCtrlMarker for DelayCrtl {}

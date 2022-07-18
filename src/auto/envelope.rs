@@ -17,6 +17,7 @@ pub struct Envelope {
     sus_half_life: Option<Control>,
     release: Control,
     time_manager: Rc<RefCell<TimeManager>>,
+    id: usize,
 }
 
 impl Envelope {
@@ -52,6 +53,7 @@ impl Envelope {
                 Err(err) => return Err(err.set_origin("Envelope", "release")),
             },
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
+            id: super::get_ctrl_id(),
         })
     }
 
@@ -157,6 +159,22 @@ impl CtrlFunction for Envelope {
         } else {
             self.get_envelope(samples - release, start)
         }
+    }
+
+    fn get_id(&self) -> usize {
+        self.id
+    }
+
+    fn get_sub_ids(&self) -> Vec<usize> {
+        let mut ids = Vec::new();
+        ids.append(&mut self.attack.get_ids());
+        ids.append(&mut self.decay.get_ids());
+        ids.append(&mut self.sustain.get_ids());
+        if let Some(func) = &self.sus_half_life {
+            ids.append(&mut func.get_ids())
+        };
+        ids.append(&mut self.release.get_ids());
+        ids
     }
 }
 

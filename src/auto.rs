@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     fmt::{Debug, Display},
     rc::Rc,
+    sync::atomic::{AtomicUsize, Ordering},
     vec,
 };
 
@@ -13,7 +14,7 @@ pub mod envelope;
 pub mod lfo;
 pub mod point_defined;
 
-pub use composed::Composed;
+// pub use composed::Composed;
 pub use constant::Constant;
 pub use envelope::Envelope;
 pub use lfo::Lfo;
@@ -28,9 +29,21 @@ where
     Rc::clone(&ctrl_function) as Rc<RefCell<dyn CtrlFunction>>
 }
 
+fn get_ctrl_id() -> usize {
+    static COUNTER: AtomicUsize = AtomicUsize::new(1);
+    COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
 pub trait CtrlFunction: TimeKeeper + Debug {
     fn get_value(&self, time: time::TimeStamp) -> f64;
     fn get_vec(&self, start: time::TimeStamp, samples: usize) -> Vec<f64>;
+    fn get_id(&self) -> usize;
+    fn get_sub_ids(&self) -> Vec<usize>;
+    fn get_all_ids(&self) -> Vec<usize> {
+        let mut out = self.get_sub_ids();
+        out.push(self.get_id());
+        out
+    }
 }
 
 #[derive(Debug)]
@@ -38,6 +51,7 @@ pub struct Control {
     value: f64,
     range: (f64, f64),
     connection: Option<Rc<RefCell<dyn CtrlFunction>>>,
+    id: Option<usize>,
 }
 
 impl Control {
@@ -54,6 +68,7 @@ impl Control {
             value: new_value,
             range,
             connection: Some(Rc::clone(&connection)),
+            id: Some(connection.borrow().get_id()),
         })
     }
 
@@ -70,6 +85,7 @@ impl Control {
                 value: new_value,
                 range,
                 connection: None,
+                id: None,
             })
         }
     }
@@ -128,12 +144,22 @@ impl Control {
     }
 }
 
+impl Control {
+    pub fn get_ids(&self) -> Vec<usize> {
+        match &self.connection {
+            Some(ctrl_func) => ctrl_func.borrow().get_all_ids(),
+            None => Vec::new(),
+        }
+    }
+}
+
 impl Default for Control {
     fn default() -> Self {
         Self {
             value: 0.5,
             range: (0.0, 1.0),
             connection: None,
+            id: None,
         }
     }
 }
