@@ -1,6 +1,6 @@
 use crate::{
     consts::SAMPLE_RATE,
-    time::{self, TimeManager, TimeStamp},
+    time::{TimeKeeper, TimeManager, TimeStamp},
     utils::oscs::Oscillator,
 };
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
@@ -44,16 +44,31 @@ impl Lfo {
 }
 
 impl Lfo {
-    pub fn set(&mut self, other: Lfo) {
+    pub fn set(&mut self, other: Lfo) -> Result<(), ControlError> {
+        self.set_freq(other.freq)?;
+        self.set_modulation(other.modulation)?;
         self.oscillator = other.oscillator;
-        self.freq = other.freq;
-        self.modulation = other.modulation;
         self.phase_shift = other.phase_shift;
         self.time_manager = other.time_manager;
+        Ok(())
+    }
+
+    pub fn set_freq(&mut self, freq_ctrl: Control) -> Result<(), ControlError> {
+        if let Err(err) = self.freq.try_set(freq_ctrl){
+            return Err(err.set_origin("Lfo", "frequency"))
+        }
+        Ok(())
+    }
+
+    pub fn set_modulation(&mut self, modulation_ctrl: Control) -> Result<(), ControlError> {
+        if let Err(err) = self.modulation.try_set(modulation_ctrl){
+            return Err(err.set_origin("Lfo", "modulation"))
+        }
+        Ok(())
     }
 }
 
-impl time::TimeKeeper for Lfo {
+impl TimeKeeper for Lfo {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager)
     }

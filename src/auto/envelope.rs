@@ -127,17 +127,63 @@ impl Envelope {
 }
 
 impl Envelope {
-    pub fn set(&mut self, other: Envelope) {
-        self.attack = other.attack;
-        self.decay = other.decay;
-        self.sustain = other.sustain;
-        self.sus_half_life = other.sus_half_life;
-        self.release = other.release;
+    pub fn set(&mut self, other: Envelope) -> Result<(), ControlError> {
+        self.set_attack(other.attack)?;
+        self.set_decay(other.decay)?;
+        self.set_sustain(other.sustain)?;
+        if let Some(half_life) = other.sus_half_life {
+            self.set_sus_half_life(half_life)?
+        }
+        self.set_release(other.release)?;
+        Ok(())
+    }
+
+    pub fn set_attack(&mut self, attack_ctrl: Control) -> Result<(), ControlError> {
+        if let Err(err) = self.attack.try_set(attack_ctrl) {
+            return Err(err.set_origin("Lfo", "attack"));
+        }
+        Ok(())
+    }
+    pub fn set_decay(&mut self, decay_ctrl: Control) -> Result<(), ControlError> {
+        if let Err(err) = self.decay.try_set(decay_ctrl) {
+            return Err(err.set_origin("Lfo", "decay"));
+        }
+        Ok(())
+    }
+    pub fn set_sustain(&mut self, sustain_ctrl: Control) -> Result<(), ControlError> {
+        if let Err(err) = self.sustain.try_set(sustain_ctrl) {
+            return Err(err.set_origin("Lfo", "sustain"));
+        }
+        Ok(())
+    }
+
+    pub fn set_sus_half_life(&mut self, half_life_ctrl: Control) -> Result<(), ControlError> {
+        if let Some(ctrl) = &mut self.sus_half_life {
+            match ctrl.try_set(half_life_ctrl) {
+                Ok(_) => Ok(()),
+                Err(err) => Err(err.set_origin("Envelope", "sustain half life")),
+            }
+        } else {
+            match half_life_ctrl.cmp_ranges(HALF_LIFE_RANGE) {
+                Ok(_) => {
+                    self.sus_half_life = Some(half_life_ctrl);
+                    Ok(())
+                }
+                Err(err) => Err(err.set_origin("Envelope", "sustain half life")),
+            }
+        }
+    }
+
+    pub fn set_release(&mut self, release_ctrl: Control) -> Result<(), ControlError> {
+        if let Err(err) = self.release.try_set(release_ctrl) {
+            return Err(err.set_origin("Lfo", "release"));
+        }
+        Ok(())
     }
 }
 
 impl TimeKeeper for Envelope {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<crate::time::TimeManager>>) {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager)
     }
 }

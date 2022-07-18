@@ -1,7 +1,7 @@
 use super::MidiInstrument;
 use crate::{
     auto::{
-        self, AutomationKeeper, AutomationManager, Constant, Control, CtrlFunction, Envelope, Lfo,
+        self, AutomationKeeper, AutomationManager, Constant, Control, CtrlFunction, Envelope, Lfo, ControlError,
     },
     effects,
     time::{self, TimeKeeper, TimeManager, TimeStamp},
@@ -267,36 +267,40 @@ impl<W: Wave> Synthesizer<W> {
         self.oscillators.add_osc(oscillator)
     }
 
-    pub fn set_main_envelope(&mut self, envelope: Envelope) {
+    pub fn set_main_envelope(&mut self, envelope: Envelope) -> Result<(), ControlError> {
         self.local_automation
             .borrow_mut()
             .main_envelope
             .borrow_mut()
-            .set(envelope);
+            .set(envelope)?;
+            Ok(())
     }
 
-    pub fn set_alt_envelope(&mut self, envelope: Envelope) {
+    pub fn set_alt_envelope(&mut self, envelope: Envelope) -> Result<(), ControlError> {
         self.local_automation
             .borrow_mut()
             .alt_envelope
             .borrow_mut()
-            .set(envelope);
+            .set(envelope)?;
+        Ok(())
     }
 
-    pub fn set_lfo1(&mut self, lfo: Lfo) {
+    pub fn set_lfo1(&mut self, lfo: Lfo) -> Result<(), ControlError>{
         self.local_automation
             .borrow_mut()
             .lfo1
             .borrow_mut()
-            .set(lfo);
+            .set(lfo)?;
+        Ok(())
     }
 
-    pub fn set_lfo2(&mut self, lfo: Lfo) {
+    pub fn set_lfo2(&mut self, lfo: Lfo) -> Result<(), ControlError>{
         self.local_automation
             .borrow_mut()
             .lfo2
             .borrow_mut()
-            .set(lfo);
+            .set(lfo)?;
+        Ok(())
     }
 
     pub fn set_vol_control(&mut self, ctrl_func: Rc<RefCell<dyn CtrlFunction>>) {

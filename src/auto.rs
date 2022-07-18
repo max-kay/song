@@ -62,7 +62,7 @@ impl Control {
     ) -> Result<Self, ControlError> {
         let new_value = (value_in_range - range.0) / (range.1 - range.0);
         if !(0.0..=1.0).contains(&new_value) {
-            return Err(ControlError::new(value_in_range, range));
+            return Err(ControlError::new_range_err(value_in_range, range));
         }
         Ok(Self {
             value: new_value,
@@ -79,7 +79,7 @@ impl Control {
     pub fn from_val_in_range(value: f64, range: (f64, f64)) -> Result<Self, ControlError> {
         let new_value = (value - range.0) / (range.1 - range.0);
         if !(0.0..=1.0).contains(&new_value) {
-            Err(ControlError::new(value, range))
+            Err(ControlError::new_range_err(value, range))
         } else {
             Ok(Self {
                 value: new_value,
@@ -97,8 +97,35 @@ impl Control {
 }
 
 impl Control {
-    pub fn set_connection(&mut self, connection: Rc<RefCell<dyn CtrlFunction>>) {
-        self.connection = Some(connection);
+    pub fn try_set(&mut self, other: Self) -> Result<(), ControlError>{
+        self.cmp_ranges(other.range)?;
+        if let Some(connection) = other.connection{
+            self.try_set_connection(connection)?
+        }
+        self.value = other.value;
+        Ok(())
+    }
+
+    pub fn try_set_connection(
+        &mut self,
+        connection: Rc<RefCell<dyn CtrlFunction>>,
+    ) -> Result<(), ControlError> {
+        if let Some(id) = self.id {
+            if connection.borrow().get_all_ids().contains(&id) {
+                return Err(ControlError::new_circ_ref_err(id));
+            }
+        }
+        self.connection = Some(Rc::clone(&connection));
+        self.id = Some(connection.borrow().get_id());
+        Ok(())
+    }
+
+    pub fn cmp_ranges(&self, range: (f64, f64)) -> Result<(), ControlError>{
+        if self.range == range{
+            Ok(())
+        } else {
+            Err(ControlError::new_range_mismatch_err(self.range, range))
+        }
     }
 
     pub fn loose_connection(&mut self) {
@@ -128,7 +155,7 @@ impl Control {
     pub fn set_value(&mut self, value: f64) -> Result<(), ControlError> {
         let new_value = (value - self.range.0) / (self.range.1 - self.range.0);
         if !(0.0..=1.0).contains(&new_value) {
-            Err(ControlError::new(value, self.range))
+            Err(ControlError::new_range_err(value, self.range))
         } else {
             self.value = value;
             Ok(())
@@ -150,6 +177,10 @@ impl Control {
             Some(ctrl_func) => ctrl_func.borrow().get_all_ids(),
             None => Vec::new(),
         }
+    }
+
+    pub fn get_ctrl_id(&self) -> Option<usize> {
+        self.id
     }
 }
 
@@ -177,18 +208,49 @@ pub struct ControlError {
     path: Vec<String>,
     origin: String,
     control: String,
-    value: f64,
-    range: (f64, f64),
+    kind: ErrorKind,
+}
+
+#[derive(Debug)]
+enum ErrorKind {
+    Range {
+        value: f64,
+        range: (f64, f64),
+    },
+    RangeMismatch {
+        trg_range: (f64, f64),
+        src_range: (f64, f64),
+    },
+    CircRef {
+        id: usize,
+    },
 }
 
 impl ControlError {
-    pub fn new(value: f64, range: (f64, f64)) -> Self {
+    pub fn new_range_err(value: f64, range: (f64, f64)) -> Self {
         Self {
             path: Vec::new(),
             origin: String::new(),
             control: String::new(),
-            value,
-            range,
+            kind: ErrorKind::Range { value, range },
+        }
+    }
+
+    pub fn new_range_mismatch_err(trg_range: (f64, f64), src_range: (f64, f64)) -> Self {
+        Self {
+            path: Vec::new(),
+            origin: String::new(),
+            control: String::new(),
+            kind: ErrorKind::RangeMismatch { trg_range, src_range },
+        }
+    }
+
+    pub fn new_circ_ref_err(id: usize) -> Self {
+        Self {
+            path: Vec::new(),
+            origin: String::new(),
+            control: String::new(),
+            kind: ErrorKind::CircRef { id },
         }
     }
 
@@ -202,21 +264,55 @@ impl ControlError {
         self.path.push(location.to_string());
         self
     }
+
+    fn get_string(&self) -> String {
+        match &self.kind {
+            ErrorKind::Range { value, range } => {
+                format!(
+                    "The value of {} in {} was set to {}, which is not in range from {} to {}!\n    full path to value: {}/{}/{}/{}",
+                    self.control,
+                    self.origin,
+                    value,
+                    range.0,
+                    range.1,
+                    self.path.join("/"),
+                    self.origin,
+                    self.control,
+                    value,
+                )
+            }
+            ErrorKind::CircRef { id } => {
+                format!(
+                    "You tried to set {} in {} to {} this leeds to a circular Reference between CtrlFunctions, which is not allowed!\n    full path to control: {}/{}/{}",
+                    self.control,
+                    self.origin,
+                    id,
+                    self.path.join("/"),
+                    self.origin,
+                    self.control,
+                )
+            }
+            ErrorKind::RangeMismatch { trg_range, src_range } => {
+                format!(
+                    "You tried to set {} in {} which has a range of ({}, {}) to a control with a range of ({}, {})!\n    full path to control: {}/{}/{}",
+                    self.control,
+                    self.origin,
+                    trg_range.0,
+                    trg_range.1,
+                    src_range.0,
+                    src_range.1,
+                    self.path.join("/"),
+                    self.origin,
+                    self.control,
+                )
+            },
+        }
+    }
 }
 
 impl Display for ControlError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "The value of {} in {} was set to {}, which is not in range from {} to {}!\n    full path to value: {}/{}/{}",
-            self.control,
-            self.origin,
-            self.value,
-            self.range.0,
-            self.range.1,
-            self.path.join("/"),
-            self.origin,
-            self.control)
+        write!(f, "{}", self.get_string())
     }
 }
 
