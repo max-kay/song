@@ -1,11 +1,12 @@
 use crate::{
     consts::SAMPLE_RATE,
+    control::{Control, ControlError},
     time::{TimeKeeper, TimeManager, TimeStamp},
-    utils::oscs::Oscillator,
+    utils::{self, oscs::Oscillator},
 };
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
 
-use super::{Control, ControlError, CtrlFunction};
+use super::{CtrlFunction, IdMap, SourceKeeper};
 
 const FREQ_RANGE: (f64, f64) = (0.001, 20.0);
 
@@ -28,17 +29,13 @@ impl Lfo {
     ) -> Result<Self, ControlError> {
         Ok(Self {
             oscillator,
-            freq: match Control::from_val_in_range(freq, FREQ_RANGE) {
-                Ok(ctrl) => ctrl,
-                Err(err) => return Err(err.set_origin("Lfo", "Frequency")),
-            },
-            modulation: match Control::from_val_in_unit(modulation) {
-                Ok(ctrl) => ctrl,
-                Err(err) => return Err(err.set_origin("Lfo", "Modulation")),
-            },
+            freq: Control::from_val_in_range(freq, FREQ_RANGE)
+                .map_err(|err| err.set_origin("Lfo", "frequency"))?,
+            modulation: Control::from_val_in_unit(modulation)
+                .map_err(|err| err.set_origin("Lfo", "modulation"))?,
             phase_shift,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
-            id: super::get_ctrl_id(),
+            id: utils::get_ctrl_id(),
         })
     }
 }
@@ -54,17 +51,15 @@ impl Lfo {
     }
 
     pub fn set_freq(&mut self, freq_ctrl: Control) -> Result<(), ControlError> {
-        if let Err(err) = self.freq.try_set(freq_ctrl){
-            return Err(err.set_origin("Lfo", "frequency"))
-        }
-        Ok(())
+        self.freq
+            .try_set_checked(freq_ctrl, self.id)
+            .map_err(|err| err.set_origin("Lfo", "frequency"))
     }
 
     pub fn set_modulation(&mut self, modulation_ctrl: Control) -> Result<(), ControlError> {
-        if let Err(err) = self.modulation.try_set(modulation_ctrl){
-            return Err(err.set_origin("Lfo", "modulation"))
-        }
-        Ok(())
+        self.modulation
+            .try_set(modulation_ctrl)
+            .map_err(|err| err.set_origin("Lfo", "modulation"))
     }
 }
 
@@ -77,6 +72,36 @@ impl TimeKeeper for Lfo {
 impl Default for Lfo {
     fn default() -> Self {
         Self::new(Oscillator::ModSaw, 2.0, 0.0, 0.0).expect("error in Lfo::Default")
+    }
+}
+
+impl SourceKeeper for Lfo {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        self.freq
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Lfo", "frequency"))?;
+        self.modulation
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Lfo", "frequency"))
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        self.freq
+            .test_sources()
+            .map_err(|err| err.set_origin("Lfo", "frequency"))?;
+        self.modulation.test_sources()
+    }
+
+    fn set_ids(&mut self) {
+        self.freq.set_ids();
+        self.modulation.set_ids();
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        let mut ids = vec![self.get_id()];
+        ids.append(&mut self.freq.get_ids());
+        ids.append(&mut self.modulation.get_ids());
+        ids
     }
 }
 
@@ -111,10 +136,13 @@ impl CtrlFunction for Lfo {
         self.id
     }
 
-    fn get_sub_ids(&self) -> Vec<usize> {
-        let mut ids = Vec::new();
-        ids.append(&mut self.freq.get_ids());
-        ids.append(&mut self.modulation.get_ids());
-        ids
+    unsafe fn new_id_f(&mut self) {
+        self.id = utils::get_ctrl_id()
     }
+
+    // fn get_sub_ids(&self) -> Vec<usize> {
+    //     let mut ids = self.freq.get_ids();
+    //     ids.append(&mut self.modulation.get_ids());
+    //     ids
+    // }
 }

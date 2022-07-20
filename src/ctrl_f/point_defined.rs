@@ -1,10 +1,11 @@
 use crate::{
+    control::ControlError,
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
 };
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
-use super::{CtrlFunction, get_ctrl_id};
+use super::{CtrlFunction, IdMap, SourceKeeper};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
@@ -18,7 +19,7 @@ impl AutomationPoint {
             (0.0..=1.0).contains(&value),
             "the value of an AutomationPoint has to in [0.0, 1.0] (closed interval)"
         );
-        Self { value, time, }
+        Self { value, time }
     }
     pub fn get_value(&self) -> f64 {
         self.value
@@ -93,7 +94,7 @@ impl PointDefined {
             points,
             interpolation,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
-            id: get_ctrl_id(),
+            id: utils::get_ctrl_id(),
         }
     }
 
@@ -121,13 +122,32 @@ impl PointDefined {
     }
 
     pub fn one_point(val: f64) -> Self {
-        Self::new(vec![AutomationPoint::new(val, TimeStamp::zero())], Interpolation::Linear)
+        Self::new(
+            vec![AutomationPoint::new(val, TimeStamp::zero())],
+            Interpolation::Linear,
+        )
     }
 }
 
 impl TimeKeeper for PointDefined {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager)
+    }
+}
+
+impl SourceKeeper for PointDefined {
+    fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {
+        Ok(())
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        Ok(())
+    }
+
+    fn set_ids(&mut self) {}
+
+    fn get_ids(&self) -> Vec<usize> {
+        vec![self.get_id()]
     }
 }
 
@@ -150,7 +170,7 @@ impl CtrlFunction for PointDefined {
         self.id
     }
 
-    fn get_sub_ids(&self) -> Vec<usize> {
-        Vec::new()
+    unsafe fn new_id_f(&mut self) {
+        self.id = utils::get_ctrl_id()
     }
 }

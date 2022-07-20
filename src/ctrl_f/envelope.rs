@@ -1,6 +1,7 @@
-use super::{Control, ControlError, CtrlFunction};
+use super::{CtrlFunction, IdMap, SourceKeeper};
 use crate::{
     consts::SAMPLE_RATE,
+    control::{self, Control, ControlError},
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
 };
@@ -14,7 +15,7 @@ pub struct Envelope {
     attack: Control,
     decay: Control,
     sustain: Control,
-    sus_half_life: Option<Control>,
+    half_life: Option<Control>,
     release: Control,
     time_manager: Rc<RefCell<TimeManager>>,
     id: usize,
@@ -25,7 +26,7 @@ impl Envelope {
         attack: f64,
         decay: f64,
         sustain: f64,
-        sus_half_life: Option<f64>,
+        half_life: Option<f64>,
         release: f64,
     ) -> Result<Self, ControlError> {
         Ok(Self {
@@ -41,7 +42,7 @@ impl Envelope {
                 Ok(ctrl) => ctrl,
                 Err(err) => return Err(err.set_origin("Envelope", "sustain")),
             },
-            sus_half_life: match sus_half_life {
+            half_life: match half_life {
                 Some(half_life) => match Control::from_val_in_range(half_life, HALF_LIFE_RANGE) {
                     Ok(ctrl) => Some(ctrl),
                     Err(err) => return Err(err.set_origin("Envelope", "sustain half life")),
@@ -53,7 +54,7 @@ impl Envelope {
                 Err(err) => return Err(err.set_origin("Envelope", "release")),
             },
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
-            id: super::get_ctrl_id(),
+            id: utils::get_ctrl_id(),
         })
     }
 
@@ -78,10 +79,10 @@ impl Envelope {
         attack: f64,
         decay: f64,
         sustain: f64,
-        sus_half_life: f64,
+        half_life: f64,
         release: f64,
     ) -> Result<Envelope, ControlError> {
-        Self::new(attack, decay, sustain, Some(sus_half_life), release)
+        Self::new(attack, decay, sustain, Some(half_life), release)
     }
 }
 
@@ -106,12 +107,12 @@ impl Envelope {
             out.push((1.0 - (i as f64) / (decay as f64)) * (1.0 - sustain) + sustain)
         }
         if out.len() < sus_samples {
-            if let Some(d_ctrl) = &self.sus_half_life {
-                let sus_half_life_factor =
+            if let Some(d_ctrl) = &self.half_life {
+                let half_life_factor =
                     0.5_f64.powf(1.0 / (d_ctrl.get_value(time) * SAMPLE_RATE as f64));
                 let remaining = sus_samples - out.len();
                 for i in 0..remaining {
-                    out.push(sustain * sus_half_life_factor.powi(i as i32));
+                    out.push(sustain * half_life_factor.powi(i as i32));
                 }
             } else {
                 let mut sus = vec![sustain; sus_samples - out.len()];
@@ -131,60 +132,117 @@ impl Envelope {
         self.set_attack(other.attack)?;
         self.set_decay(other.decay)?;
         self.set_sustain(other.sustain)?;
-        if let Some(half_life) = other.sus_half_life {
-            self.set_sus_half_life(half_life)?
+        if let Some(half_life) = other.half_life {
+            self.set_half_life(half_life)?
         }
         self.set_release(other.release)?;
         Ok(())
     }
 
     pub fn set_attack(&mut self, attack_ctrl: Control) -> Result<(), ControlError> {
-        if let Err(err) = self.attack.try_set(attack_ctrl) {
-            return Err(err.set_origin("Lfo", "attack"));
-        }
-        Ok(())
-    }
-    pub fn set_decay(&mut self, decay_ctrl: Control) -> Result<(), ControlError> {
-        if let Err(err) = self.decay.try_set(decay_ctrl) {
-            return Err(err.set_origin("Lfo", "decay"));
-        }
-        Ok(())
-    }
-    pub fn set_sustain(&mut self, sustain_ctrl: Control) -> Result<(), ControlError> {
-        if let Err(err) = self.sustain.try_set(sustain_ctrl) {
-            return Err(err.set_origin("Lfo", "sustain"));
-        }
-        Ok(())
+        self.attack
+            .try_set_checked(attack_ctrl, self.id)
+            .map_err(|err| err.set_origin("Lfo", "attack"))
     }
 
-    pub fn set_sus_half_life(&mut self, half_life_ctrl: Control) -> Result<(), ControlError> {
-        if let Some(ctrl) = &mut self.sus_half_life {
-            match ctrl.try_set(half_life_ctrl) {
-                Ok(_) => Ok(()),
-                Err(err) => Err(err.set_origin("Envelope", "sustain half life")),
-            }
-        } else {
-            match half_life_ctrl.cmp_ranges(HALF_LIFE_RANGE) {
-                Ok(_) => {
-                    self.sus_half_life = Some(half_life_ctrl);
-                    Ok(())
-                }
-                Err(err) => Err(err.set_origin("Envelope", "sustain half life")),
-            }
-        }
+    pub fn set_decay(&mut self, decay_ctrl: Control) -> Result<(), ControlError> {
+        self.decay
+            .try_set_checked(decay_ctrl, self.id)
+            .map_err(|err| err.set_origin("Lfo", "decay"))
+    }
+
+    pub fn set_sustain(&mut self, sustain_ctrl: Control) -> Result<(), ControlError> {
+        self.sustain
+            .try_set_checked(sustain_ctrl, self.id)
+            .map_err(|err| err.set_origin("Lfo", "sustain"))
+    }
+
+    pub fn set_half_life(&mut self, half_life_ctrl: Control) -> Result<(), ControlError> {
+        control::opt_try_set_checked(
+            &mut self.half_life,
+            HALF_LIFE_RANGE,
+            half_life_ctrl,
+            self.id,
+        )
+        .map_err(|err| err.set_origin("Envelope", "halflife"))
     }
 
     pub fn set_release(&mut self, release_ctrl: Control) -> Result<(), ControlError> {
-        if let Err(err) = self.release.try_set(release_ctrl) {
-            return Err(err.set_origin("Lfo", "release"));
-        }
-        Ok(())
+        self.release
+            .try_set_checked(release_ctrl, self.id)
+            .map_err(|err| err.set_origin("Lfo", "release"))
     }
 }
 
 impl TimeKeeper for Envelope {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager)
+    }
+}
+
+impl SourceKeeper for Envelope {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        self.attack
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Envelope", "attack"))?;
+        self.decay
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Envelope", "decay"))?;
+        self.sustain
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Envelope", "sustain"))?;
+        self.release
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Envelope", "release"))?;
+        if let Some(half_life) = &mut self.half_life {
+            half_life
+                .heal_sources(id_map)
+                .map_err(|err| err.set_origin("Envelope", "half_life"))?
+        };
+        Ok(())
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        self.attack
+            .test_sources()
+            .map_err(|err| err.set_origin("Envelope", "attack"))?;
+        self.decay
+            .test_sources()
+            .map_err(|err| err.set_origin("Envelope", "decay"))?;
+        self.sustain
+            .test_sources()
+            .map_err(|err| err.set_origin("Envelope", "sustain"))?;
+        self.release
+            .test_sources()
+            .map_err(|err| err.set_origin("Envelope", "release"))?;
+        if let Some(half_life) = &self.half_life {
+            half_life
+                .test_sources()
+                .map_err(|err| err.set_origin("Envelope", "half_life"))?
+        };
+        Ok(())
+    }
+
+    fn set_ids(&mut self) {
+        self.attack.set_ids();
+        self.decay.set_ids();
+        self.sustain.set_ids();
+        self.release.set_ids();
+        if let Some(half_life) = &mut self.half_life {
+            half_life.set_ids()
+        }
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        let mut ids = vec![self.get_id()];
+        ids.append(&mut self.attack.get_ids());
+        ids.append(&mut self.decay.get_ids());
+        ids.append(&mut self.sustain.get_ids());
+        if let Some(func) = &self.half_life {
+            ids.append(&mut func.get_ids())
+        };
+        ids.append(&mut self.release.get_ids());
+        ids
     }
 }
 
@@ -211,17 +269,21 @@ impl CtrlFunction for Envelope {
         self.id
     }
 
-    fn get_sub_ids(&self) -> Vec<usize> {
-        let mut ids = Vec::new();
-        ids.append(&mut self.attack.get_ids());
-        ids.append(&mut self.decay.get_ids());
-        ids.append(&mut self.sustain.get_ids());
-        if let Some(func) = &self.sus_half_life {
-            ids.append(&mut func.get_ids())
-        };
-        ids.append(&mut self.release.get_ids());
-        ids
+    unsafe fn new_id_f(&mut self) {
+        self.id = utils::get_ctrl_id()
     }
+
+    // fn get_sub_ids(&self) -> Vec<usize> {
+    //     let mut ids = Vec::new();
+    //     ids.append(&mut self.attack.get_ids());
+    //     ids.append(&mut self.decay.get_ids());
+    //     ids.append(&mut self.sustain.get_ids());
+    //     if let Some(half_life) = &self.half_life {
+    //         ids.append(&mut half_life.get_ids())
+    //     }
+    //     ids.append(&mut self.release.get_ids());
+    //     ids
+    // }
 }
 
 #[cfg(test)]

@@ -1,5 +1,7 @@
 use super::{Control, EffMarker, Effect};
 use crate::{
+    control::{ControlError, SourceKeeper},
+    ctrl_f::IdMap,
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
     wave::Wave,
@@ -42,6 +44,37 @@ impl<W: Wave> TimeKeeper for Delay<W> {
         self.time_manager = Rc::clone(&time_manager);
         self.gain.set_time_manager(Rc::clone(&time_manager));
         self.delta_t.set_time_manager(Rc::clone(&time_manager));
+    }
+}
+
+impl<W: Wave> SourceKeeper for Delay<W> {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        self.delta_t
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Delay", "delta_t"))?;
+        self.gain
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Delay", "gain"))
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        self.delta_t
+            .test_sources()
+            .map_err(|err| err.set_origin("Delay", "delta_t"))?;
+        self.gain
+            .test_sources()
+            .map_err(|err| err.set_origin("Delay", "gain"))
+    }
+
+    fn set_ids(&mut self) {
+        self.delta_t.set_ids();
+        self.gain.set_ids()
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        let mut ids = self.delta_t.get_ids();
+        ids.append(&mut self.gain.get_ids());
+        ids
     }
 }
 

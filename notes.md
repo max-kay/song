@@ -3,3 +3,5 @@
 - think about setting Control exponential
 - make composed and transformed ctrl_functions
 - think about how to require TimeKeeper and AutomationKeeper
+
+- who should own the TimeManager

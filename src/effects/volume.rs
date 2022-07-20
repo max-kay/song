@@ -1,7 +1,8 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use crate::{
-    auto::Control,
+    control::{Control, ControlError, SourceKeeper},
+    ctrl_f::IdMap,
     time::{TimeKeeper, TimeManager, TimeStamp},
     wave::Wave,
 };
@@ -39,12 +40,32 @@ impl<W: Wave> TimeKeeper for Volume<W> {
     }
 }
 
+impl<W: Wave> SourceKeeper for Volume<W> {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        self.volume
+            .heal_sources(id_map)
+            .map_err(|err| err.set_origin("Volume", "volume"))
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        self.volume
+            .test_sources()
+            .map_err(|err| err.set_origin("Volume", "volume"))
+    }
+
+    fn set_ids(&mut self) {
+        self.volume.set_ids()
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        self.volume.get_ids()
+    }
+}
+
 impl<W: Wave> Effect<W> for Volume<W> {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
         if self.on {
-            let vol = self
-                .volume
-                .get_vec(time_triggered, wave.len());
+            let vol = self.volume.get_vec(time_triggered, wave.len());
             wave.scale_by_vec(vol)
         }
     }

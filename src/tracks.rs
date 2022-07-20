@@ -1,4 +1,8 @@
-use crate::{time::{TimeManager, TimeKeeper}, wave::{ Wave}};
+use crate::{
+    ctrl_f::{FunctionKeeper, IdMapOrErr},
+    time::{TimeKeeper, TimeManager},
+    wave::Wave,
+};
 use std::{cell::RefCell, rc::Rc};
 
 pub mod midi;
@@ -19,9 +23,23 @@ impl<W: Wave> TimeKeeper for Track<W> {
 }
 
 impl<W: Wave> Track<W> {
-    pub fn set_automation_manager(&mut self) {
+    pub fn set_function_manager(&mut self) {
         match self {
-            Track::Midi(track) => track.set_automation_manager(),
+            Track::Midi(track) => track.set_function_manager(),
+        }
+    }
+}
+
+impl<W: Wave> FunctionKeeper for Track<W> {
+    unsafe fn new_id(&mut self) {
+        match self {
+            Track::Midi(track) => track.new_id(),
+        }
+    }
+
+    fn get_id_map(&self) -> IdMapOrErr {
+        match self {
+            Track::Midi(track) => track.get_id_map(),
         }
     }
 }

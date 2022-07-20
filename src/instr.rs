@@ -1,9 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    auto::{AutomationKeeper},
-    tracks::midi,
-    wave::Wave, time::TimeKeeper,
+    control::SourceKeeper, ctrl_f::FunctionMngrKeeper, time::TimeKeeper, tracks::midi, wave::Wave,
 };
 pub mod empty;
 pub mod synth;
@@ -11,7 +9,7 @@ pub mod synth;
 pub use empty::EmptyInstrument;
 pub use synth::Synthesizer;
 
-pub trait MidiInstrument<W: Wave>: TimeKeeper + AutomationKeeper + Debug {
+pub trait MidiInstrument<W: Wave>: SourceKeeper + TimeKeeper + FunctionMngrKeeper + Debug {
     fn play_note(&self, note: midi::Note) -> W;
     fn play_notes(&self, note: &[midi::Note]) -> W;
     fn name(&self) -> &str;

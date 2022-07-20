@@ -1,10 +1,12 @@
 #![warn(missing_debug_implementations)]
 
 use std::{cell::RefCell, rc::Rc};
-use time::TimeKeeper;
+use time::{TimeKeeper, TimeManager};
+use wave::Wave;
 
-pub mod auto;
 pub mod consts;
+pub mod control;
+pub mod ctrl_f;
 pub mod effects;
 pub mod instr;
 pub mod io;
@@ -14,13 +16,13 @@ pub mod utils;
 pub mod wave;
 
 #[derive(Debug)]
-pub struct Song<W: wave::Wave> {
+pub struct Song<W: Wave> {
     name: String,
     tracks: Vec<tracks::Track<W>>,
-    time_manager: Rc<RefCell<time::TimeManager>>,
+    time_manager: Rc<RefCell<TimeManager>>,
 }
 
-impl<W: 'static + wave::Wave> Song<W> {
+impl<W: 'static + Wave> Song<W> {
     pub fn set_time_manager(&mut self) {
         for track in &mut self.tracks {
             track.set_time_manager(Rc::clone(&self.time_manager))
@@ -34,7 +36,7 @@ impl<W: 'static + wave::Wave> Song<W> {
         Self {
             name,
             tracks: Vec::new(),
-            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 

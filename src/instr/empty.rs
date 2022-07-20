@@ -1,10 +1,11 @@
 use super::{midi, MidiInstrument};
 use crate::{
-    auto::{self, AutomationManager},
+    control::{ControlError, SourceKeeper},
+    ctrl_f::{FunctionKeeper, FunctionManager, FunctionMngrKeeper, IdMap, IdMapOrErr},
     time::{TimeKeeper, TimeManager},
     wave::Wave,
 };
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
 
 #[derive(Debug)]
 pub struct EmptyInstrument<W: Wave> {
@@ -28,8 +29,32 @@ impl<W: Wave> TimeKeeper for EmptyInstrument<W> {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
-impl<W: Wave> auto::AutomationKeeper for EmptyInstrument<W> {
-    fn set_automation_manager(&mut self, _automation_manager: Rc<RefCell<AutomationManager>>) {}
+impl<W: Wave> SourceKeeper for EmptyInstrument<W> {
+    fn get_ids(&self) -> Vec<usize> {
+        Vec::new()
+    }
+
+    fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {
+        Ok(())
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        Ok(())
+    }
+
+    fn set_ids(&mut self) {}
+}
+
+impl<W: Wave> FunctionKeeper for EmptyInstrument<W> {
+    unsafe fn new_id(&mut self) {}
+
+    fn get_id_map(&self) -> IdMapOrErr {
+        Ok(HashMap::new())
+    }
+}
+
+impl<W: Wave> FunctionMngrKeeper for EmptyInstrument<W> {
+    fn set_fuction_manager(&mut self, _function_manager: Rc<RefCell<FunctionManager>>) {}
 }
 
 impl<W: Wave> MidiInstrument<W> for EmptyInstrument<W> {

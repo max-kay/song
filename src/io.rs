@@ -108,7 +108,7 @@ pub fn save_wave<W: Wave>(wave: W, path: &Path) {
 //         name: track_name,
 //         instrument: Box::new(instruments::EmptyInstrument::new()),
 //         gain: 1.0,
-//         automation: Rc::new(auto::AutomationManager::new()),
+//         function: Rc::new(auto::AutomationManager::new()),
 //         effects: effects::EffectNode::Bypass,
 //         control_panel: effects::CtrlPanel::Bypass,
 //         notes: Vec::new(),

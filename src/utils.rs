@@ -1,4 +1,9 @@
-use crate::consts::SAMPLE_RATE;
+use std::{
+    ops::AddAssign,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
+use crate::{consts::SAMPLE_RATE, control::ControlError, ctrl_f::IdMap};
 
 pub mod oscs;
 
@@ -18,7 +23,7 @@ pub fn smooth_step(x: f64) -> f64 {
 }
 
 #[inline]
-pub fn add_elementwise<T: std::ops::AddAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
+pub fn add_elementwise<T: AddAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
     assert_eq!(
         v1.len(),
         v2.len(),
@@ -77,4 +82,33 @@ mod test {
         let v2: Vec<i32> = vec![4, 5, 1, 7];
         add_elementwise(&mut v1, v2);
     }
+}
+
+pub fn my_extend(map: &mut IdMap, other: IdMap) -> Result<(), ControlError> {
+    for (key, func) in other.into_iter() {
+        match map.insert(key, func) {
+            Some(func) => return Err(ControlError::new_double_id_err(func.borrow().get_id())),
+            None => (),
+        }
+    }
+    Ok(())
+}
+
+pub fn overlap<T: PartialEq + Copy>(v1: &[T], v2: &[T]) -> Option<Vec<T>> {
+    // TODO remove need for copying (inefficient)
+    let out: Vec<T> = v1
+        .iter()
+        .filter(|item| v2.contains(item))
+        .copied()
+        .collect();
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+pub fn get_ctrl_id() -> usize {
+    static COUNTER: AtomicUsize = AtomicUsize::new(1);
+    COUNTER.fetch_add(1, Ordering::Relaxed)
 }

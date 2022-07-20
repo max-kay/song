@@ -1,7 +1,11 @@
-use crate::time::{TimeKeeper, TimeManager, TimeStamp};
+use crate::{
+    control::ControlError,
+    time::{TimeKeeper, TimeManager, TimeStamp},
+    utils::{self, get_ctrl_id},
+};
 use std::{cell::RefCell, rc::Rc};
 
-use super::CtrlFunction;
+use super::{CtrlFunction, IdMap, SourceKeeper};
 
 #[derive(Debug, Default)]
 pub struct Constant {
@@ -13,7 +17,7 @@ impl Constant {
     pub fn new() -> Self {
         Self {
             val: 0.0,
-            id: super::get_ctrl_id(),
+            id: get_ctrl_id(),
         }
     }
     pub fn set(&mut self, value: f64) {
@@ -24,6 +28,22 @@ impl Constant {
 
 impl TimeKeeper for Constant {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
+}
+
+impl SourceKeeper for Constant {
+    fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {
+        Ok(())
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        Ok(())
+    }
+
+    fn set_ids(&mut self) {}
+
+    fn get_ids(&self) -> Vec<usize> {
+        vec![self.get_id()]
+    }
 }
 
 impl CtrlFunction for Constant {
@@ -39,7 +59,7 @@ impl CtrlFunction for Constant {
         self.id
     }
 
-    fn get_sub_ids(&self) -> Vec<usize> {
-        Vec::new()
+    unsafe fn new_id_f(&mut self) {
+        self.id = utils::get_ctrl_id();
     }
 }

@@ -1,7 +1,11 @@
 use crate::{
-    auto, effects, instr,
-    time::{self, TimeManager},
-    wave,
+    control::{ControlError, SourceKeeper},
+    ctrl_f::{FunctionKeeper, FunctionManager, IdMap, IdMapOrErr},
+    effects::EffectPanel,
+    instr::{EmptyInstrument, MidiInstrument},
+    time::{self, TimeKeeper, TimeManager},
+    utils,
+    wave::Wave,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -40,70 +44,127 @@ pub struct Note {
 }
 
 #[derive(Debug)]
-pub struct MidiTrack<W: wave::Wave> {
-    pub name: String,
-    pub instrument: Box<dyn instr::MidiInstrument<W>>,
-    pub gain: f64,
-    pub effects: effects::EffectNode<W>,
-    pub notes: Vec<Note>,
-    pub automation_manager: Rc<RefCell<auto::AutomationManager>>,
-    pub time_manager: Rc<RefCell<time::TimeManager>>,
+pub struct MidiTrack<W: Wave> {
+    name: String,
+    instrument: Box<dyn MidiInstrument<W>>,
+    gain: f64,
+    effects: EffectPanel<W>,
+    notes: Vec<Note>,
+    function_manager: Rc<RefCell<FunctionManager>>,
+    time_manager: Rc<RefCell<TimeManager>>,
 }
 
-impl<W: wave::Wave> time::TimeKeeper for MidiTrack<W> {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<time::TimeManager>>) {
+impl<W: Wave> TimeKeeper for MidiTrack<W> {
+    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.instrument.set_time_manager(Rc::clone(&time_manager));
         self.effects.set_time_manager(Rc::clone(&time_manager));
-        self.automation_manager
+        self.function_manager
             .borrow_mut()
             .set_time_manager(Rc::clone(&time_manager));
         self.time_manager = Rc::clone(&time_manager)
     }
 }
 
-impl<W: wave::Wave> MidiTrack<W> {
-    pub fn set_automation_manager(&mut self) {
+impl<W: Wave> MidiTrack<W> {
+    pub fn set_function_manager(&mut self) {
         self.instrument
-            .set_automation_manager(Rc::clone(&self.automation_manager));
+            .set_fuction_manager(Rc::clone(&self.function_manager));
     }
 }
 
-impl<'a, W: 'static + wave::Wave> MidiTrack<W> {
+impl<W: 'static + Wave> MidiTrack<W> {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            instrument: Box::new(instr::EmptyInstrument::<W>::new()),
+            instrument: Box::new(EmptyInstrument::<W>::new()),
             gain: 1.0,
-            effects: effects::EffectNode::Bypass,
-            automation_manager: Rc::new(RefCell::new(auto::AutomationManager::new())),
+            effects: EffectPanel::EmptyLeaf,
+            function_manager: Rc::new(RefCell::new(FunctionManager::new())),
             notes: Vec::new(),
-            time_manager: Rc::new(RefCell::new(time::TimeManager::default())),
+            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
     pub fn play(&self) -> W {
         let mut wave = self.instrument.play_notes(&self.notes);
         self.effects
-            .apply(&mut wave, self.time_manager.borrow().zero());
+            .apply_to(&mut wave, self.time_manager.borrow().zero());
         wave.scale(self.gain);
         wave
     }
 
-    pub fn from_instrument(instrument: Box<dyn instr::MidiInstrument<W>>) -> Self {
-        let automation = Rc::new(RefCell::new(auto::AutomationManager::new()));
-        let track = Self {
+    pub fn from_instrument(instrument: Box<dyn MidiInstrument<W>>) -> Self {
+        let function_manager = Rc::new(RefCell::new(FunctionManager::new()));
+        Self {
             name: String::from(instrument.name()),
             instrument,
             gain: 1.0,
-            effects: effects::EffectNode::<W>::Bypass,
-            automation_manager: automation,
+            effects: EffectPanel::<W>::EmptyLeaf,
+            function_manager,
             notes: Vec::new(),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
-        };
-        track
+        }
     }
 }
 
-impl<'a, W: 'static + wave::Wave> Default for MidiTrack<W> {
+impl<W: Wave> MidiTrack<W> {
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl<W: Wave> FunctionKeeper for MidiTrack<W> {
+    unsafe fn new_id(&mut self) {
+        self.instrument.new_id();
+        self.function_manager.borrow_mut().new_id();
+    }
+
+    fn get_id_map(&self) -> IdMapOrErr {
+        let mut map = self.instrument.get_id_map()?;
+        utils::my_extend(&mut map, self.function_manager.borrow().get_id_map()?)?;
+        Ok(map)
+    }
+}
+
+impl<W: Wave> SourceKeeper for MidiTrack<W> {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        self.instrument
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("MidiTrack"))?;
+        self.effects
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("MidiTrack"))?;
+        self.function_manager
+            .borrow_mut()
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("MidiTrack"))
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        self.instrument
+            .test_sources()
+            .map_err(|err| err.push_location("MidiTrackr"))?;
+        self.effects
+            .test_sources()
+            .map_err(|err| err.push_location("MidiTrack"))?;
+        self.function_manager.borrow_mut().test_sources()
+    }
+
+    fn set_ids(&mut self) {
+        self.instrument.set_ids();
+        self.effects.set_ids();
+        self.function_manager.borrow_mut().set_ids();
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        let mut ids = Vec::new();
+        ids.append(&mut self.instrument.get_ids());
+        ids.append(&mut self.effects.get_ids());
+        ids.append(&mut self.function_manager.borrow().get_ids());
+        ids
+    }
+}
+
+impl<W: 'static + Wave> Default for MidiTrack<W> {
     fn default() -> Self {
         Self::new()
     }

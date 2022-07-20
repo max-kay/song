@@ -1,15 +1,19 @@
 use super::MidiInstrument;
 use crate::{
-    auto::{
-        self, AutomationKeeper, AutomationManager, Constant, Control, CtrlFunction, Envelope, Lfo, ControlError,
+    control::{Control, ControlError, Source, SourceKeeper},
+    ctrl_f::{
+        self, Constant, CtrlFunction, Envelope, FunctionKeeper, FunctionManager,
+        FunctionMngrKeeper, IdMap, IdMapOrErr, Lfo,
     },
-    effects,
+    effects::EffectPanel,
     time::{self, TimeKeeper, TimeManager, TimeStamp},
     tracks::midi,
     utils::{self, oscs::Oscillator},
     wave::Wave,
 };
-use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
+use std::{
+    cell::RefCell, collections::HashMap, marker::PhantomData, path::Path, rc::Rc, result::Result,
+};
 
 const PITCH_WHEEL_RANGE: (f64, f64) = (-4800.0, 4800.0);
 const VOL_CTRL_RANGE: (f64, f64) = (0.0, 5.0);
@@ -76,18 +80,68 @@ impl<W: Wave> OscPanel<W> {
     }
 }
 
+impl<W: Wave> TimeKeeper for OscPanel<W> {
+    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
+}
+
+impl<W: Wave> SourceKeeper for OscPanel<W> {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        for w in &mut self.weights {
+            w.heal_sources(id_map)
+                .map_err(|err| err.push_location("OscPanel"))?;
+        }
+        for p in &mut self.pitch_offsets {
+            p.heal_sources(id_map)
+                .map_err(|err| err.push_location("OscPanel"))?;
+        }
+        Ok(())
+    }
+
+    fn set_ids(&mut self) {
+        for w in &mut self.weights {
+            w.set_ids()
+        }
+        for p in &mut self.pitch_offsets {
+            p.set_ids()
+        }
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        for w in &self.weights {
+            w.test_sources()
+                .map_err(|err| err.push_location("OscPanel"))?;
+        }
+        for p in &self.pitch_offsets {
+            p.test_sources()
+                .map_err(|err| err.push_location("OscPanel"))?;
+        }
+        Ok(())
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        let mut ids = Vec::new();
+        for w in &self.weights {
+            ids.append(&mut w.get_ids())
+        }
+        for p in &self.pitch_offsets {
+            ids.append(&mut p.get_ids())
+        }
+        ids
+    }
+}
+
 #[derive(Debug)]
-pub struct SynthAutomation {
+struct LocalFManager {
     main_envelope: Rc<RefCell<Envelope>>,
     alt_envelope: Rc<RefCell<Envelope>>,
     current_velocity: Rc<RefCell<Constant>>,
     lfo1: Rc<RefCell<Lfo>>,
     lfo2: Rc<RefCell<Lfo>>,
-    track_automation: Rc<RefCell<AutomationManager>>,
+    track_functions: Rc<RefCell<FunctionManager>>,
     time_manager: Rc<RefCell<TimeManager>>,
 }
 
-impl SynthAutomation {
+impl LocalFManager {
     fn new() -> Self {
         Self {
             main_envelope: Rc::new(RefCell::new(Envelope::default())),
@@ -95,19 +149,19 @@ impl SynthAutomation {
             current_velocity: Rc::new(RefCell::new(Constant::default())),
             lfo1: Rc::new(RefCell::new(Lfo::default())),
             lfo2: Rc::new(RefCell::new(Lfo::default())),
-            track_automation: Rc::new(RefCell::new(AutomationManager::new())),
+            track_functions: Rc::new(RefCell::new(FunctionManager::new())),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 }
 
-impl SynthAutomation {
+impl LocalFManager {
     pub fn set_velocity(&mut self, velocity: f64) {
-        (*self.current_velocity).borrow_mut().set(velocity)
+        self.current_velocity.borrow_mut().set(velocity)
     }
 }
 
-impl TimeKeeper for SynthAutomation {
+impl TimeKeeper for LocalFManager {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager);
         self.lfo1
@@ -125,21 +179,120 @@ impl TimeKeeper for SynthAutomation {
     }
 }
 
-impl AutomationKeeper for SynthAutomation {
-    fn set_automation_manager(&mut self, automation_manager: Rc<RefCell<AutomationManager>>) {
-        self.track_automation = Rc::clone(&automation_manager)
+impl SourceKeeper for LocalFManager {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        self.main_envelope
+            .borrow_mut()
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.alt_envelope
+            .borrow_mut()
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.current_velocity
+            .borrow_mut()
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.lfo1
+            .borrow_mut()
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.lfo2
+            .borrow_mut()
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("LocalFManager"))
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        self.main_envelope
+            .borrow()
+            .test_sources()
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.alt_envelope
+            .borrow()
+            .test_sources()
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.current_velocity
+            .borrow()
+            .test_sources()
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.lfo1
+            .borrow()
+            .test_sources()
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        self.lfo2
+            .borrow()
+            .test_sources()
+            .map_err(|err| err.push_location("LocalFManager"))
+    }
+
+    fn set_ids(&mut self) {
+        self.main_envelope.borrow_mut().set_ids();
+        self.alt_envelope.borrow_mut().set_ids();
+        self.current_velocity.borrow_mut().set_ids();
+        self.lfo1.borrow_mut().set_ids();
+        self.lfo2.borrow_mut().set_ids()
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        let mut ids = Vec::new();
+        ids.append(&mut self.main_envelope.borrow().get_ids());
+        ids.append(&mut self.alt_envelope.borrow().get_ids());
+        ids.append(&mut self.current_velocity.borrow().get_ids());
+        ids.append(&mut self.lfo1.borrow().get_ids());
+        ids.append(&mut self.lfo2.borrow().get_ids());
+        ids
+    }
+}
+
+impl FunctionKeeper for LocalFManager {
+    unsafe fn new_id(&mut self) {
+        self.main_envelope.borrow_mut().new_id_f();
+        self.alt_envelope.borrow_mut().new_id_f();
+        self.current_velocity.borrow_mut().new_id_f();
+        self.lfo1.borrow_mut().new_id_f();
+        self.lfo2.borrow_mut().new_id_f();
+        // new ids for the track_functions are set in the Track struct
+    }
+
+    fn get_id_map(&self) -> IdMapOrErr {
+        let mut map = HashMap::<usize, Rc<RefCell<dyn CtrlFunction>>>::new();
+
+        let main_envelope = ctrl_f::make_ctrl_function(Rc::clone(&self.main_envelope));
+        let alt_envelope = ctrl_f::make_ctrl_function(Rc::clone(&self.alt_envelope));
+        let lfo1 = ctrl_f::make_ctrl_function(Rc::clone(&self.lfo1));
+        let lfo2 = ctrl_f::make_ctrl_function(Rc::clone(&self.lfo2));
+        let current_velocity = ctrl_f::make_ctrl_function(Rc::clone(&self.current_velocity));
+
+        ctrl_f::try_insert_id(main_envelope, &mut map)
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        ctrl_f::try_insert_id(alt_envelope, &mut map)
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        ctrl_f::try_insert_id(lfo1, &mut map).map_err(|err| err.push_location("LocalFManager"))?;
+        ctrl_f::try_insert_id(lfo2, &mut map).map_err(|err| err.push_location("LocalFManager"))?;
+        ctrl_f::try_insert_id(current_velocity, &mut map)
+            .map_err(|err| err.push_location("LocalFManager"))?;
+        // track_functions are inserted in the Track struct
+
+        Ok(map)
+    }
+}
+
+impl FunctionMngrKeeper for LocalFManager {
+    fn set_fuction_manager(&mut self, function_manager: Rc<RefCell<FunctionManager>>) {
+        self.track_functions = Rc::clone(&function_manager)
     }
 }
 
 #[derive(Debug)]
 pub struct Synthesizer<W: Wave> {
     name: String,
-    effects: effects::EffectNode<W>,
+    effects: EffectPanel<W>,
     oscillators: OscPanel<W>,
-    local_automation: Rc<RefCell<SynthAutomation>>,
-    pitch_control: auto::Control,
-    modulation_control: auto::Control,
-    volume_control: auto::Control,
+    fuctions: Rc<RefCell<LocalFManager>>,
+    pitch_control: Control,
+    modulation_control: Control,
+    volume_control: Control,
     time_manager: Rc<RefCell<TimeManager>>,
 }
 
@@ -147,11 +300,11 @@ impl<W: Wave> Synthesizer<W> {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            effects: effects::EffectNode::Bypass,
-            local_automation: Rc::new(RefCell::new(SynthAutomation::new())),
-            pitch_control: auto::Control::from_val_in_unit(0.5).unwrap(),
-            modulation_control: auto::Control::from_val_in_unit(0.5).unwrap(),
-            volume_control: auto::Control::from_val_in_unit(1.0).unwrap(),
+            effects: EffectPanel::EmptyLeaf,
+            fuctions: Rc::new(RefCell::new(LocalFManager::new())),
+            pitch_control: Control::from_val_in_unit(0.5).unwrap(),
+            modulation_control: Control::from_val_in_unit(0.5).unwrap(),
+            volume_control: Control::from_val_in_unit(1.0).unwrap(),
             oscillators: OscPanel::default(),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
@@ -161,7 +314,7 @@ impl<W: Wave> Synthesizer<W> {
 impl<W: Wave> time::TimeKeeper for Synthesizer<W> {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.effects.set_time_manager(Rc::clone(&time_manager));
-        (*self.local_automation)
+        self.fuctions
             .borrow_mut()
             .set_time_manager(Rc::clone(&time_manager));
         self.pitch_control
@@ -173,14 +326,14 @@ impl<W: Wave> time::TimeKeeper for Synthesizer<W> {
 
 impl<W: Wave> Synthesizer<W> {
     fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> W {
-        (*self.local_automation).borrow_mut().set_velocity(velocity);
+        self.fuctions.borrow_mut().set_velocity(velocity);
         let sus_samples = self
             .time_manager
             .borrow()
             .duration_to_samples(note_on, note_off);
 
         let envelope = self
-            .local_automation
+            .fuctions
             .borrow()
             .main_envelope
             .borrow()
@@ -202,16 +355,92 @@ impl<W: Wave> Synthesizer<W> {
         );
         wave.scale_by_vec(self.volume_control.get_vec(note_on, envelope.len()));
         wave.scale_by_vec(envelope);
-        self.effects.apply(&mut wave, note_on);
+        self.effects.apply_to(&mut wave, note_on);
         wave
     }
 }
 
-impl<W: Wave> AutomationKeeper for Synthesizer<W> {
-    fn set_automation_manager(&mut self, automation_manager: Rc<RefCell<AutomationManager>>) {
-        self.local_automation
+impl<W: Wave> SourceKeeper for Synthesizer<W> {
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        self.effects
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.oscillators
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.fuctions
             .borrow_mut()
-            .set_automation_manager(Rc::clone(&automation_manager))
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.pitch_control
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.modulation_control
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.volume_control
+            .heal_sources(id_map)
+            .map_err(|err| err.push_location("Synthesizer"))
+    }
+
+    fn set_ids(&mut self) {
+        self.effects.set_ids();
+        self.oscillators.set_ids();
+        self.fuctions.borrow_mut().set_ids();
+        self.pitch_control.set_ids();
+        self.modulation_control.set_ids();
+        self.volume_control.set_ids();
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        self.effects
+            .test_sources()
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.oscillators
+            .test_sources()
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.fuctions
+            .borrow()
+            .test_sources()
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.pitch_control
+            .test_sources()
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.modulation_control
+            .test_sources()
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        self.volume_control
+            .test_sources()
+            .map_err(|err| err.push_location("Synthesizer"))
+    }
+
+    fn get_ids(&self) -> Vec<usize> {
+        let mut ids = Vec::new();
+        ids.append(&mut self.effects.get_ids());
+        ids.append(&mut self.oscillators.get_ids());
+        ids.append(&mut self.fuctions.borrow().get_ids());
+        ids.append(&mut self.pitch_control.get_ids());
+        ids.append(&mut self.modulation_control.get_ids());
+        ids.append(&mut self.volume_control.get_ids());
+        ids
+    }
+}
+
+impl<W: Wave> FunctionKeeper for Synthesizer<W> {
+    unsafe fn new_id(&mut self) {
+        self.fuctions.borrow_mut().new_id()
+    }
+
+    fn get_id_map(&self) -> IdMapOrErr {
+        self.fuctions.borrow().get_id_map()
+    }
+}
+
+impl<W: Wave> FunctionMngrKeeper for Synthesizer<W> {
+    fn set_fuction_manager(&mut self, function_manager: Rc<RefCell<FunctionManager>>) {
+        self.fuctions
+            .borrow_mut()
+            .set_fuction_manager(Rc::clone(&function_manager))
     }
 }
 
@@ -233,32 +462,43 @@ impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
 }
 
 impl<W: Wave> Synthesizer<W> {
-    pub fn get_main_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().main_envelope))
+    pub fn get_main_envelope(&self) -> Source {
+        Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
+            &self.fuctions.borrow().main_envelope,
+        )))
     }
 
-    pub fn get_alt_envelope(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().alt_envelope))
+    pub fn get_alt_envelope(&self) -> Source {
+        Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
+            &self.fuctions.borrow().alt_envelope,
+        )))
     }
 
-    pub fn get_current_velocity(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().current_velocity))
+    pub fn get_current_velocity(&self) -> Source {
+        Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
+            &self.fuctions.borrow().current_velocity,
+        )))
     }
 
-    pub fn get_lfo1(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().lfo1))
+    pub fn get_lfo1(&self) -> Source {
+        Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
+            &self.fuctions.borrow().lfo1,
+        )))
     }
 
-    pub fn get_lfo2(&self) -> Rc<RefCell<dyn CtrlFunction>> {
-        auto::make_ctrl_function(Rc::clone(&self.local_automation.borrow().lfo2))
+    pub fn get_lfo2(&self) -> Source {
+        Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
+            &self.fuctions.borrow().lfo2,
+        )))
     }
 
-    pub fn get_automation_channel(&self, channel: u8) -> Option<Rc<RefCell<dyn CtrlFunction>>> {
-        self.local_automation
+    pub fn get_automation_channel(&self, channel: u8) -> Option<Source> {
+        self.fuctions
             .borrow()
-            .track_automation
+            .track_functions
             .borrow()
             .get_channel(channel)
+            .map(Source::from_function)
     }
 }
 
@@ -268,47 +508,51 @@ impl<W: Wave> Synthesizer<W> {
     }
 
     pub fn set_main_envelope(&mut self, envelope: Envelope) -> Result<(), ControlError> {
-        self.local_automation
+        self.fuctions
             .borrow_mut()
             .main_envelope
             .borrow_mut()
-            .set(envelope)?;
-            Ok(())
+            .set(envelope)
+            .map_err(|err| err.push_location("Synthesizer"))?;
+        Ok(())
     }
 
     pub fn set_alt_envelope(&mut self, envelope: Envelope) -> Result<(), ControlError> {
-        self.local_automation
+        self.fuctions
             .borrow_mut()
             .alt_envelope
             .borrow_mut()
-            .set(envelope)?;
+            .set(envelope)
+            .map_err(|err| err.push_location("Synthesizer"))?;
         Ok(())
     }
 
-    pub fn set_lfo1(&mut self, lfo: Lfo) -> Result<(), ControlError>{
-        self.local_automation
+    pub fn set_lfo1(&mut self, lfo: Lfo) -> Result<(), ControlError> {
+        self.fuctions
             .borrow_mut()
             .lfo1
             .borrow_mut()
-            .set(lfo)?;
+            .set(lfo)
+            .map_err(|err| err.push_location("Synthesizer"))?;
         Ok(())
     }
 
-    pub fn set_lfo2(&mut self, lfo: Lfo) -> Result<(), ControlError>{
-        self.local_automation
+    pub fn set_lfo2(&mut self, lfo: Lfo) -> Result<(), ControlError> {
+        self.fuctions
             .borrow_mut()
             .lfo2
             .borrow_mut()
-            .set(lfo)?;
+            .set(lfo)
+            .map_err(|err| err.push_location("Synthesizer"))?;
         Ok(())
     }
 
-    pub fn set_vol_control(&mut self, ctrl_func: Rc<RefCell<dyn CtrlFunction>>) {
-        self.volume_control = Control::new(1.0, VOL_CTRL_RANGE, ctrl_func).unwrap()
+    pub fn set_vol_source(&mut self, source: Source) {
+        self.volume_control = Control::new(1.0, VOL_CTRL_RANGE, source).unwrap()
     }
 
-    pub fn set_pitch_control(&mut self, ctrl_func: Rc<RefCell<dyn CtrlFunction>>) {
-        self.volume_control = Control::new(0.0, PITCH_WHEEL_RANGE, ctrl_func).unwrap()
+    pub fn set_pitch_source(&mut self, source: Source) {
+        self.volume_control = Control::new(0.0, PITCH_WHEEL_RANGE, source).unwrap()
     }
 }
 
