@@ -7,6 +7,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 pub mod constant;
 pub mod envelope;
 pub mod lfo;
+pub mod phantom;
 pub mod point_defined;
 
 pub use constant::Constant;
@@ -51,7 +52,7 @@ pub trait CtrlFunction: Debug + SourceKeeper {
     unsafe fn new_id_f(&mut self);
 }
 
-pub trait FunctionKeeper: TimeKeeper {
+pub trait FunctionOwner: TimeKeeper {
     /// .
     ///
     /// # Safety
@@ -59,7 +60,7 @@ pub trait FunctionKeeper: TimeKeeper {
     /// If this is done without recieving the new ids in all ControlKeepers Serialization is possible
     /// but there will be errors when Deserializing!
     /// .
-    unsafe fn new_id(&mut self);
+    unsafe fn new_ids(&mut self);
     fn get_id_map(&self) -> IdMapOrErr;
 }
 
@@ -100,15 +101,15 @@ impl TimeKeeper for FunctionManager {
     }
 }
 
-impl FunctionKeeper for FunctionManager {
-    unsafe fn new_id(&mut self) {
+impl FunctionOwner for FunctionManager {
+    unsafe fn new_ids(&mut self) {
         for func in self.channels.values() {
             func.borrow_mut().new_id_f()
         }
     }
 
     fn get_id_map(&self) -> IdMapOrErr {
-        let mut map = HashMap::new();
+        let mut map = IdMap::new();
         for func in self.channels.values() {
             try_insert_id(Rc::clone(func), &mut map)
                 .map_err(|err| err.push_location("FunctionManager"))?;
@@ -151,6 +152,6 @@ impl SourceKeeper for FunctionManager {
     }
 }
 
-pub trait FunctionMngrKeeper: FunctionKeeper {
+pub trait FunctionMngrKeeper: FunctionOwner {
     fn set_fuction_manager(&mut self, function_manager: Rc<RefCell<FunctionManager>>);
 }

@@ -1,5 +1,6 @@
 use crate::{
-    ctrl_f::{FunctionKeeper, IdMapOrErr},
+    control::{ControlError, SourceKeeper},
+    ctrl_f::FunctionOwner,
     time::{TimeKeeper, TimeManager},
     wave::Wave,
 };
@@ -30,16 +31,14 @@ impl<W: Wave> Track<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for Track<W> {
-    unsafe fn new_id(&mut self) {
+impl<W: Wave> Track<W> {
+    pub fn new_ids(&mut self) -> Result<(), ControlError> {
         match self {
-            Track::Midi(track) => track.new_id(),
-        }
-    }
-
-    fn get_id_map(&self) -> IdMapOrErr {
-        match self {
-            Track::Midi(track) => track.get_id_map(),
+            Track::Midi(track) => {
+                unsafe { track.new_ids() };
+                track.set_ids();
+                track.test_sources()
+            }
         }
     }
 }

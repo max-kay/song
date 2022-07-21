@@ -1,6 +1,6 @@
 use crate::{
     control::{ControlError, SourceKeeper},
-    ctrl_f::{FunctionKeeper, FunctionManager, IdMap, IdMapOrErr},
+    ctrl_f::{FunctionManager, FunctionOwner, IdMap, IdMapOrErr},
     effects::EffectPanel,
     instr::{EmptyInstrument, MidiInstrument},
     time::{self, TimeKeeper, TimeManager},
@@ -112,10 +112,10 @@ impl<W: Wave> MidiTrack<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for MidiTrack<W> {
-    unsafe fn new_id(&mut self) {
-        self.instrument.new_id();
-        self.function_manager.borrow_mut().new_id();
+impl<W: Wave> FunctionOwner for MidiTrack<W> {
+    unsafe fn new_ids(&mut self) {
+        self.instrument.new_ids();
+        self.function_manager.borrow_mut().new_ids();
     }
 
     fn get_id_map(&self) -> IdMapOrErr {

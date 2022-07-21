@@ -1,5 +1,5 @@
 use std::{
-    ops::AddAssign,
+    ops::{AddAssign, MulAssign},
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -24,7 +24,7 @@ pub fn smooth_step(x: f64) -> f64 {
 
 #[inline]
 pub fn add_elementwise<T: AddAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
-    assert_eq!(
+    debug_assert_eq!(
         v1.len(),
         v2.len(),
         "vectors passed to add_elementwise didn't have equal len"
@@ -32,6 +32,37 @@ pub fn add_elementwise<T: AddAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
     for (x2, x1) in v2.into_iter().zip(v1) {
         *x1 += x2
     }
+}
+
+#[inline]
+pub fn mul_elementwise<T: MulAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
+    debug_assert_eq!(
+        v1.len(),
+        v2.len(),
+        "vectors passed to add_elementwise didn't have equal len"
+    );
+    for (x2, x1) in v2.into_iter().zip(v1) {
+        *x1 *= x2
+    }
+}
+
+// pub fn overlap<T: PartialEq + Copy>(v1: &[T], v2: &[T]) -> Option<Vec<T>> {
+//     // TODO remove need for copying (inefficient)
+//     let out: Vec<T> = v1
+//         .iter()
+//         .filter(|item| v2.contains(item))
+//         .copied()
+//         .collect();
+//     if out.is_empty() {
+//         None
+//     } else {
+//         Some(out)
+//     }
+// }
+
+pub fn get_ctrl_id() -> usize {
+    static COUNTER: AtomicUsize = AtomicUsize::new(1);
+    COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
 pub fn max_abs_f64(vec: &[f64]) -> f64 {
@@ -92,23 +123,4 @@ pub fn my_extend(map: &mut IdMap, other: IdMap) -> Result<(), ControlError> {
         }
     }
     Ok(())
-}
-
-pub fn overlap<T: PartialEq + Copy>(v1: &[T], v2: &[T]) -> Option<Vec<T>> {
-    // TODO remove need for copying (inefficient)
-    let out: Vec<T> = v1
-        .iter()
-        .filter(|item| v2.contains(item))
-        .copied()
-        .collect();
-    if out.is_empty() {
-        None
-    } else {
-        Some(out)
-    }
-}
-
-pub fn get_ctrl_id() -> usize {
-    static COUNTER: AtomicUsize = AtomicUsize::new(1);
-    COUNTER.fetch_add(1, Ordering::Relaxed)
 }

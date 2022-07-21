@@ -2,8 +2,8 @@ use super::MidiInstrument;
 use crate::{
     control::{Control, ControlError, Source, SourceKeeper},
     ctrl_f::{
-        self, Constant, CtrlFunction, Envelope, FunctionKeeper, FunctionManager,
-        FunctionMngrKeeper, IdMap, IdMapOrErr, Lfo,
+        self, Constant, CtrlFunction, Envelope, FunctionManager, FunctionMngrKeeper, FunctionOwner,
+        IdMap, IdMapOrErr, Lfo,
     },
     effects::EffectPanel,
     time::{self, TimeKeeper, TimeManager, TimeStamp},
@@ -245,8 +245,8 @@ impl SourceKeeper for LocalFManager {
     }
 }
 
-impl FunctionKeeper for LocalFManager {
-    unsafe fn new_id(&mut self) {
+impl FunctionOwner for LocalFManager {
+    unsafe fn new_ids(&mut self) {
         self.main_envelope.borrow_mut().new_id_f();
         self.alt_envelope.borrow_mut().new_id_f();
         self.current_velocity.borrow_mut().new_id_f();
@@ -426,9 +426,9 @@ impl<W: Wave> SourceKeeper for Synthesizer<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for Synthesizer<W> {
-    unsafe fn new_id(&mut self) {
-        self.fuctions.borrow_mut().new_id()
+impl<W: Wave> FunctionOwner for Synthesizer<W> {
+    unsafe fn new_ids(&mut self) {
+        self.fuctions.borrow_mut().new_ids()
     }
 
     fn get_id_map(&self) -> IdMapOrErr {

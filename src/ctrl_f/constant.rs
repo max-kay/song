@@ -5,7 +5,7 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-use super::{CtrlFunction, IdMap, SourceKeeper};
+use super::{CtrlFunction, FunctionOwner, IdMap, IdMapOrErr, SourceKeeper};
 
 #[derive(Debug, Default)]
 pub struct Constant {
@@ -43,6 +43,14 @@ impl SourceKeeper for Constant {
 
     fn get_ids(&self) -> Vec<usize> {
         vec![self.get_id()]
+    }
+}
+
+impl FunctionOwner for Constant {
+    unsafe fn new_ids(&mut self) {}
+
+    fn get_id_map(&self) -> IdMapOrErr {
+        Ok(IdMap::new())
     }
 }
 

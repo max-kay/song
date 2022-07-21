@@ -248,7 +248,7 @@ impl SourceKeeper for Envelope {
 
 impl CtrlFunction for Envelope {
     fn get_value(&self, _time: TimeStamp) -> f64 {
-        panic!()
+        panic!("an Envelope cannot be bound to a reciever which requries getting a value")
     }
 
     fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {

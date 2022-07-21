@@ -1,6 +1,7 @@
 use crate::{
     ctrl_f::{CtrlFunction, IdMap},
     time::{TimeKeeper, TimeManager, TimeStamp},
+    utils,
 };
 use std::{
     cell::RefCell,
@@ -13,56 +14,98 @@ use std::{
 pub enum Source {
     Function {
         f: Rc<RefCell<dyn CtrlFunction>>,
-        id: usize,
+        func_id: usize,
+    },
+    WeigthedAverage {
+        sources: Vec<(f64, Source)>,
+    },
+    Product {
+        sources: Vec<(f64, Source)>,
+    },
+    Inverted {
+        source: Box<Source>,
+    },
+    Transformed {
+        func: fn(f64) -> f64,
+        source: Box<Source>,
     },
 }
 
 impl Source {
     pub fn from_function(function: Rc<RefCell<dyn CtrlFunction>>) -> Self {
-        let id = function.borrow().get_id();
-        Self::Function { f: function, id }
+        let func_id = function.borrow().get_id();
+        Self::Function {
+            f: function,
+            func_id,
+        }
     }
 }
 
 impl Source {
     pub fn get_value(&self, time: TimeStamp) -> f64 {
         match self {
-            Source::Function { f, id: _ } => f.borrow().get_value(time),
+            Source::Function { f, func_id: _ } => f.borrow().get_value(time),
+            Source::WeigthedAverage { sources } => {
+                let mut value = 0.0;
+                let mut total_w = 0.0;
+                for (w, s) in sources {
+                    total_w += w;
+                    value += w * s.get_value(time);
+                }
+                value / total_w
+            }
+            Source::Product { sources } => {
+                let mut value = 1.0;
+                for (w, s) in sources {
+                    value *= s.get_value(time).powf(*w);
+                }
+                value
+            }
+            Source::Inverted { source } => -source.get_value(time) + 1.0,
+            Source::Transformed { func, source } => func(source.get_value(time)),
         }
     }
     pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
         match self {
-            Source::Function { f, id: _ } => f.borrow().get_vec(start, samples),
-        }
-    }
-}
-
-impl SourceKeeper for Source {
-    fn get_ids(&self) -> Vec<usize> {
-        match self {
-            Source::Function { f, id: _ } => vec![f.borrow().get_id()],
-        }
-    }
-
-    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
-        match self {
-            Source::Function { f, id } => match id_map.get(id) {
-                Some(new_f) => {
-                    *f = Rc::clone(new_f);
-                    Ok(())
+            Source::Function { f, func_id: _ } => f.borrow().get_vec(start, samples),
+            Source::WeigthedAverage { sources } => {
+                let mut values = vec![0.0; samples];
+                let mut total_w = 0.0;
+                for (w, s) in sources {
+                    total_w += w;
+                    utils::mul_elementwise(
+                        &mut values,
+                        s.get_vec(start, samples)
+                            .into_iter()
+                            .map(|x| x * w)
+                            .collect(),
+                    );
                 }
-                None => Err(ControlError::new_func_not_found(*id)),
-            },
-        }
-    }
-
-    fn test_sources(&self) -> Result<(), ControlError> {
-        todo!()
-    }
-
-    fn set_ids(&mut self) {
-        match self {
-            Source::Function { f, id } => *id = f.borrow().get_id(),
+                values.into_iter().map(|x| x / total_w).collect()
+            }
+            Source::Product { sources } => {
+                let mut values = vec![1.0; samples];
+                for (w, s) in sources {
+                    utils::mul_elementwise(
+                        &mut values,
+                        s.get_vec(start, samples)
+                            .into_iter()
+                            .map(|x| x.powf(*w))
+                            .collect(),
+                    );
+                }
+                values
+            }
+            Source::Inverted { source } => source
+                .get_vec(start, samples)
+                .into_iter()
+                .map(|x| -x + 1.0)
+                .collect(),
+            Source::Transformed { func, source } => source
+                .get_vec(start, samples)
+                .into_iter()
+                .map(func)
+                .collect(),
         }
     }
 }
@@ -70,7 +113,115 @@ impl SourceKeeper for Source {
 impl TimeKeeper for Source {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         match self {
-            Source::Function { f, id: _ } => f.borrow_mut().set_time_manager(time_manager),
+            Source::Function { f, func_id: _ } => f.borrow_mut().set_time_manager(time_manager),
+            Source::WeigthedAverage { sources } => {
+                for (_, s) in sources {
+                    s.set_time_manager(Rc::clone(&time_manager));
+                }
+            }
+            Source::Product { sources } => {
+                for (_, s) in sources {
+                    s.set_time_manager(Rc::clone(&time_manager));
+                }
+            }
+            Source::Inverted { source } => source.set_time_manager(time_manager),
+            Source::Transformed { func: _, source } => source.set_time_manager(time_manager),
+        }
+    }
+}
+
+impl SourceKeeper for Source {
+    fn get_ids(&self) -> Vec<usize> {
+        match self {
+            Source::Function { f, func_id: _ } => vec![f.borrow().get_id()],
+            Source::WeigthedAverage { sources } => {
+                let mut ids = Vec::new();
+                for (_, s) in sources {
+                    ids.append(&mut s.get_ids())
+                }
+                ids
+            }
+            Source::Product { sources } => {
+                let mut ids = Vec::new();
+                for (_, s) in sources {
+                    ids.append(&mut s.get_ids())
+                }
+                ids
+            }
+            Source::Inverted { source } => source.get_ids(),
+            Source::Transformed { func: _, source } => source.get_ids(),
+        }
+    }
+
+    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
+        match self {
+            Source::Function { f, func_id: id } => match id_map.get(id) {
+                Some(new_f) => {
+                    *f = Rc::clone(new_f);
+                    Ok(())
+                }
+                None => Err(ControlError::new_func_not_found(*id)),
+            },
+            Source::WeigthedAverage { sources } => {
+                for (_, s) in sources {
+                    s.heal_sources(id_map)
+                        .map_err(|err| err.push_location("Source::WeigthedAverage"))?;
+                }
+                Ok(())
+            }
+            Source::Product { sources } => {
+                for (_, s) in sources {
+                    s.heal_sources(id_map)
+                        .map_err(|err| err.push_location("Source::Product"))?;
+                }
+                Ok(())
+            }
+            Source::Inverted { source } => source
+                .heal_sources(id_map)
+                .map_err(|err| err.push_location("Source::Inverted")),
+            Source::Transformed { func: _, source } => source
+                .heal_sources(id_map)
+                .map_err(|err| err.push_location("Source::Inverted")),
+        }
+    }
+
+    fn test_sources(&self) -> Result<(), ControlError> {
+        match self {
+            Source::Function { f, func_id: _ } => f.borrow().test_sources(),
+            Source::WeigthedAverage { sources } => {
+                for (_, s) in sources {
+                    s.test_sources()
+                        .map_err(|err| err.push_location("Source::WeigthedAverage"))?;
+                }
+                Ok(())
+            }
+            Source::Product { sources } => {
+                for (_, s) in sources {
+                    s.test_sources()
+                        .map_err(|err| err.push_location("Source::Product"))?;
+                }
+                Ok(())
+            }
+            Source::Inverted { source } => source.test_sources(),
+            Source::Transformed { func: _, source } => source.test_sources(),
+        }
+    }
+
+    fn set_ids(&mut self) {
+        match self {
+            Source::Function { f, func_id: id } => *id = f.borrow().get_id(),
+            Source::WeigthedAverage { sources } => {
+                for (_, s) in sources {
+                    s.set_ids();
+                }
+            }
+            Source::Product { sources } => {
+                for (_, s) in sources {
+                    s.set_ids();
+                }
+            }
+            Source::Inverted { source } => source.set_ids(),
+            Source::Transformed { func: _, source } => source.set_ids(),
         }
     }
 }
@@ -274,6 +425,7 @@ enum ErrorKind {
     FNotFound {
         id: usize,
     },
+    PhantomF,
 }
 
 #[derive(Debug)]
@@ -330,6 +482,15 @@ impl ControlError {
             origin: String::new(),
             control: String::new(),
             kind: ErrorKind::FNotFound { id },
+        }
+    }
+
+    pub fn new_phantom_f_err() -> Self {
+        Self {
+            path: Vec::new(),
+            origin: String::new(),
+            control: String::new(),
+            kind: ErrorKind::PhantomF,
         }
     }
 
@@ -405,6 +566,15 @@ impl ControlError {
                     self.control,
                 )
             }
+            ErrorKind::PhantomF =>
+            format!(
+                "The source for {} in {} has no assigned CtrlFunction!\n    full path to control: {}/{}/{}",
+                self.control,
+                self.origin,
+                self.path.join("/"),
+                self.origin,
+                self.control,
+            ),
         }
     }
 }

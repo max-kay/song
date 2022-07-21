@@ -1,11 +1,11 @@
 use super::{midi, MidiInstrument};
 use crate::{
     control::{ControlError, SourceKeeper},
-    ctrl_f::{FunctionKeeper, FunctionManager, FunctionMngrKeeper, IdMap, IdMapOrErr},
+    ctrl_f::{FunctionManager, FunctionMngrKeeper, FunctionOwner, IdMap, IdMapOrErr},
     time::{TimeKeeper, TimeManager},
     wave::Wave,
 };
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 #[derive(Debug)]
 pub struct EmptyInstrument<W: Wave> {
@@ -45,11 +45,11 @@ impl<W: Wave> SourceKeeper for EmptyInstrument<W> {
     fn set_ids(&mut self) {}
 }
 
-impl<W: Wave> FunctionKeeper for EmptyInstrument<W> {
-    unsafe fn new_id(&mut self) {}
+impl<W: Wave> FunctionOwner for EmptyInstrument<W> {
+    unsafe fn new_ids(&mut self) {}
 
     fn get_id_map(&self) -> IdMapOrErr {
-        Ok(HashMap::new())
+        Ok(IdMap::new())
     }
 }
 
