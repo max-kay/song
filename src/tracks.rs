@@ -1,5 +1,5 @@
 use crate::{
-    control::{ControlError, SourceKeeper},
+    control::{ControlError, FunctionKeeper},
     ctrl_f::FunctionOwner,
     time::{TimeKeeper, TimeManager},
     wave::Wave,

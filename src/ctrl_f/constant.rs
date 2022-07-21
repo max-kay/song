@@ -5,7 +5,7 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-use super::{CtrlFunction, FunctionOwner, IdMap, IdMapOrErr, SourceKeeper};
+use super::{CtrlFunction, FunctionOwner, IdMap, IdMapOrErr, FunctionKeeper};
 
 #[derive(Debug, Default)]
 pub struct Constant {
@@ -30,7 +30,7 @@ impl TimeKeeper for Constant {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
-impl SourceKeeper for Constant {
+impl FunctionKeeper for Constant {
     fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {
         Ok(())
     }

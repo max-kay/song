@@ -1,5 +1,5 @@
 use crate::{
-    control::{Control, ControlError, SourceKeeper},
+    control::{Control, ControlError, FunctionKeeper},
     ctrl_f::IdMap,
     time::{TimeKeeper, TimeManager, TimeStamp},
     wave::Wave,
@@ -14,7 +14,7 @@ pub use delay::Delay;
 
 trait EffMarker<W: Wave>: Effect<W> + Default {}
 
-pub trait Effect<W: Wave>: Debug + TimeKeeper + SourceKeeper {
+pub trait Effect<W: Wave>: Debug + TimeKeeper + FunctionKeeper {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn on(&mut self);
@@ -61,7 +61,7 @@ impl<W: Wave> TimeKeeper for EffectPanel<W> {
     }
 }
 
-impl<W: Wave> SourceKeeper for EffectPanel<W> {
+impl<W: Wave> FunctionKeeper for EffectPanel<W> {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         match self {
             EffectPanel::Leaf(eff) => eff

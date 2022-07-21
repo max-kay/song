@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    control::{ControlError, SourceKeeper},
+    control::{ControlError, FunctionKeeper},
     time::{TimeKeeper, TimeManager, TimeStamp},
 };
 
@@ -14,7 +14,7 @@ impl TimeKeeper for PhantomF {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
-impl SourceKeeper for PhantomF {
+impl FunctionKeeper for PhantomF {
     fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {
         Ok(())
     }

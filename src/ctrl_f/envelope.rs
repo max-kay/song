@@ -1,4 +1,4 @@
-use super::{CtrlFunction, IdMap, SourceKeeper};
+use super::{CtrlFunction, IdMap, FunctionKeeper};
 use crate::{
     consts::SAMPLE_RATE,
     control::{self, Control, ControlError},
@@ -180,7 +180,7 @@ impl TimeKeeper for Envelope {
     }
 }
 
-impl SourceKeeper for Envelope {
+impl FunctionKeeper for Envelope {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.attack
             .heal_sources(id_map)

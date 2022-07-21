@@ -5,7 +5,7 @@ use crate::{
 };
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
-use super::{CtrlFunction, IdMap, SourceKeeper};
+use super::{CtrlFunction, IdMap, FunctionKeeper};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
@@ -135,7 +135,7 @@ impl TimeKeeper for PointDefined {
     }
 }
 
-impl SourceKeeper for PointDefined {
+impl FunctionKeeper for PointDefined {
     fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {
         Ok(())
     }

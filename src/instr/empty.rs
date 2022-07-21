@@ -1,6 +1,6 @@
 use super::{midi, MidiInstrument};
 use crate::{
-    control::{ControlError, SourceKeeper},
+    control::{ControlError, FunctionKeeper},
     ctrl_f::{FunctionManager, FunctionMngrKeeper, FunctionOwner, IdMap, IdMapOrErr},
     time::{TimeKeeper, TimeManager},
     wave::Wave,
@@ -29,7 +29,7 @@ impl<W: Wave> TimeKeeper for EmptyInstrument<W> {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
-impl<W: Wave> SourceKeeper for EmptyInstrument<W> {
+impl<W: Wave> FunctionKeeper for EmptyInstrument<W> {
     fn get_ids(&self) -> Vec<usize> {
         Vec::new()
     }

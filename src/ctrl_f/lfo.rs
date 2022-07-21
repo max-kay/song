@@ -6,7 +6,7 @@ use crate::{
 };
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
 
-use super::{CtrlFunction, IdMap, SourceKeeper};
+use super::{CtrlFunction, IdMap, FunctionKeeper};
 
 const FREQ_RANGE: (f64, f64) = (0.001, 20.0);
 
@@ -75,7 +75,7 @@ impl Default for Lfo {
     }
 }
 
-impl SourceKeeper for Lfo {
+impl FunctionKeeper for Lfo {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.freq
             .heal_sources(id_map)

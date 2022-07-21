@@ -1,7 +1,7 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use crate::{
-    control::{Control, ControlError, SourceKeeper},
+    control::{Control, ControlError, FunctionKeeper},
     ctrl_f::IdMap,
     time::{TimeKeeper, TimeManager, TimeStamp},
     wave::Wave,
@@ -40,7 +40,7 @@ impl<W: Wave> TimeKeeper for Volume<W> {
     }
 }
 
-impl<W: Wave> SourceKeeper for Volume<W> {
+impl<W: Wave> FunctionKeeper for Volume<W> {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.volume
             .heal_sources(id_map)

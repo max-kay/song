@@ -1,5 +1,5 @@
 use crate::{
-    control::{ControlError, SourceKeeper},
+    control::{ControlError, FunctionKeeper},
     time::{TimeKeeper, TimeManager, TimeStamp},
 };
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
@@ -37,7 +37,7 @@ pub fn try_insert_id(
     Ok(())
 }
 
-pub trait CtrlFunction: Debug + SourceKeeper {
+pub trait CtrlFunction: Debug + FunctionKeeper {
     fn get_value(&self, time: TimeStamp) -> f64;
     fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64>;
     fn get_id(&self) -> usize;
@@ -118,7 +118,7 @@ impl FunctionOwner for FunctionManager {
     }
 }
 
-impl SourceKeeper for FunctionManager {
+impl FunctionKeeper for FunctionManager {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         for func in self.channels.values() {
             func.borrow_mut()

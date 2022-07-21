@@ -130,7 +130,7 @@ impl TimeKeeper for Source {
     }
 }
 
-impl SourceKeeper for Source {
+impl FunctionKeeper for Source {
     fn get_ids(&self) -> Vec<usize> {
         match self {
             Source::Function { f, func_id: _ } => vec![f.borrow().get_id()],
@@ -362,7 +362,7 @@ impl Control {
     }
 }
 
-impl SourceKeeper for Control {
+impl FunctionKeeper for Control {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         if let Some(source) = &mut self.source {
             source.heal_sources(id_map)?;
@@ -399,7 +399,7 @@ impl TimeKeeper for Control {
     }
 }
 
-pub trait SourceKeeper: TimeKeeper {
+pub trait FunctionKeeper: TimeKeeper {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError>;
     fn test_sources(&self) -> Result<(), ControlError>;
     fn set_ids(&mut self);

@@ -1,6 +1,6 @@
 use super::MidiInstrument;
 use crate::{
-    control::{Control, ControlError, Source, SourceKeeper},
+    control::{Control, ControlError, Source, FunctionKeeper},
     ctrl_f::{
         self, Constant, CtrlFunction, Envelope, FunctionManager, FunctionMngrKeeper, FunctionOwner,
         IdMap, IdMapOrErr, Lfo,
@@ -84,7 +84,7 @@ impl<W: Wave> TimeKeeper for OscPanel<W> {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
-impl<W: Wave> SourceKeeper for OscPanel<W> {
+impl<W: Wave> FunctionKeeper for OscPanel<W> {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         for w in &mut self.weights {
             w.heal_sources(id_map)
@@ -179,7 +179,7 @@ impl TimeKeeper for LocalFManager {
     }
 }
 
-impl SourceKeeper for LocalFManager {
+impl FunctionKeeper for LocalFManager {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.main_envelope
             .borrow_mut()
@@ -360,7 +360,7 @@ impl<W: Wave> Synthesizer<W> {
     }
 }
 
-impl<W: Wave> SourceKeeper for Synthesizer<W> {
+impl<W: Wave> FunctionKeeper for Synthesizer<W> {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.effects
             .heal_sources(id_map)

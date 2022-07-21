@@ -1,5 +1,5 @@
 use crate::{
-    control::{ControlError, SourceKeeper},
+    control::{ControlError, FunctionKeeper},
     ctrl_f::{FunctionManager, FunctionOwner, IdMap, IdMapOrErr},
     effects::EffectPanel,
     instr::{EmptyInstrument, MidiInstrument},
@@ -125,7 +125,7 @@ impl<W: Wave> FunctionOwner for MidiTrack<W> {
     }
 }
 
-impl<W: Wave> SourceKeeper for MidiTrack<W> {
+impl<W: Wave> FunctionKeeper for MidiTrack<W> {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.instrument
             .heal_sources(id_map)

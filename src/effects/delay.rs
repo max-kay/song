@@ -1,6 +1,6 @@
 use super::{Control, EffMarker, Effect};
 use crate::{
-    control::{ControlError, SourceKeeper},
+    control::{ControlError, FunctionKeeper},
     ctrl_f::IdMap,
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
@@ -47,7 +47,7 @@ impl<W: Wave> TimeKeeper for Delay<W> {
     }
 }
 
-impl<W: Wave> SourceKeeper for Delay<W> {
+impl<W: Wave> FunctionKeeper for Delay<W> {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.delta_t
             .heal_sources(id_map)
