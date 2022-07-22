@@ -1,4 +1,5 @@
 use std::{
+    io,
     ops::{AddAssign, MulAssign},
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -60,7 +61,7 @@ pub fn mul_elementwise<T: MulAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
 //     }
 // }
 
-pub fn get_ctrl_id() -> usize {
+pub fn get_f_id() -> usize {
     static COUNTER: AtomicUsize = AtomicUsize::new(1);
     COUNTER.fetch_add(1, Ordering::Relaxed)
 }
@@ -87,7 +88,7 @@ pub fn user_input(prompt: &str) -> String {
     println!("{}", prompt);
 
     let mut input = String::new();
-    match std::io::stdin().read_line(&mut input) {
+    match io::stdin().read_line(&mut input) {
         Ok(_) => {}
         Err(error) => println!("{}", error),
     };
@@ -117,9 +118,8 @@ mod test {
 
 pub fn my_extend(map: &mut IdMap, other: IdMap) -> Result<(), ControlError> {
     for (key, func) in other.into_iter() {
-        match map.insert(key, func) {
-            Some(func) => return Err(ControlError::new_double_id_err(func.borrow().get_id())),
-            None => (),
+        if let Some(func) = map.insert(key, func) {
+            return Err(ControlError::new_double_id_err(func.borrow().get_id()));
         }
     }
     Ok(())

@@ -2,6 +2,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 use time::{TimeKeeper, TimeManager};
+use tracks::Track;
 use wave::Wave;
 
 pub mod consts;
@@ -18,7 +19,7 @@ pub mod wave;
 #[derive(Debug)]
 pub struct Song<W: Wave> {
     name: String,
-    tracks: Vec<tracks::Track<W>>,
+    tracks: Vec<Track<W>>,
     time_manager: Rc<RefCell<TimeManager>>,
 }
 
@@ -41,7 +42,7 @@ impl<W: 'static + Wave> Song<W> {
     }
 
     pub fn add_midi_track(&mut self, track: tracks::MidiTrack<W>) {
-        self.tracks.push(tracks::Track::Midi(track))
+        self.tracks.push(Track::Midi(track))
     }
 
     pub fn get_wave(&self) -> W {

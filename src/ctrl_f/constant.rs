@@ -1,7 +1,7 @@
 use crate::{
     control::ControlError,
     time::{TimeKeeper, TimeManager, TimeStamp},
-    utils::{self, get_ctrl_id},
+    utils::{self, get_f_id},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -17,7 +17,7 @@ impl Constant {
     pub fn new() -> Self {
         Self {
             val: 0.0,
-            id: get_ctrl_id(),
+            id: get_f_id(),
         }
     }
     pub fn set(&mut self, value: f64) {
@@ -68,6 +68,6 @@ impl CtrlFunction for Constant {
     }
 
     unsafe fn new_id_f(&mut self) {
-        self.id = utils::get_ctrl_id();
+        self.id = utils::get_f_id();
     }
 }

@@ -54,7 +54,7 @@ impl Envelope {
                 Err(err) => return Err(err.set_origin("Envelope", "release")),
             },
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
-            id: utils::get_ctrl_id(),
+            id: utils::get_f_id(),
         })
     }
 
@@ -270,7 +270,7 @@ impl CtrlFunction for Envelope {
     }
 
     unsafe fn new_id_f(&mut self) {
-        self.id = utils::get_ctrl_id()
+        self.id = utils::get_f_id()
     }
 
     // fn get_sub_ids(&self) -> Vec<usize> {

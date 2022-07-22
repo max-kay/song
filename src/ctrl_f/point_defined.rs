@@ -94,7 +94,7 @@ impl PointDefined {
             points,
             interpolation,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
-            id: utils::get_ctrl_id(),
+            id: utils::get_f_id(),
         }
     }
 
@@ -171,6 +171,6 @@ impl CtrlFunction for PointDefined {
     }
 
     unsafe fn new_id_f(&mut self) {
-        self.id = utils::get_ctrl_id()
+        self.id = utils::get_f_id()
     }
 }

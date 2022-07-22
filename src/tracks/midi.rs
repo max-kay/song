@@ -72,7 +72,7 @@ impl<W: Wave> MidiTrack<W> {
     }
 }
 
-impl<W: 'static + Wave> MidiTrack<W> {
+impl<W: Wave + 'static> MidiTrack<W> {
     pub fn new() -> Self {
         Self {
             name: String::new(),
