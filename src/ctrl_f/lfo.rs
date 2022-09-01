@@ -1,12 +1,12 @@
 use crate::{
-    consts::SAMPLE_RATE,
     control::{Control, ControlError},
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    globals::{SAMPLE_RATE, TIME_MANAGER},
+    time::TimeStamp,
     utils::{self, oscs::Oscillator},
 };
-use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
+use std::f64::consts::TAU;
 
-use super::{CtrlFunction, IdMap, FunctionKeeper};
+use super::{CtrlFunction, FunctionKeeper, IdMap};
 
 const FREQ_RANGE: (f64, f64) = (0.001, 20.0);
 
@@ -16,7 +16,6 @@ pub struct Lfo {
     freq: Control,
     modulation: Control,
     phase_shift: f64,
-    time_manager: Rc<RefCell<TimeManager>>,
     id: usize,
 }
 
@@ -34,7 +33,6 @@ impl Lfo {
             modulation: Control::from_val_in_unit(modulation)
                 .map_err(|err| err.set_origin("Lfo", "modulation"))?,
             phase_shift,
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
             id: utils::get_f_id(),
         })
     }
@@ -46,7 +44,6 @@ impl Lfo {
         self.set_modulation(other.modulation)?;
         self.oscillator = other.oscillator;
         self.phase_shift = other.phase_shift;
-        self.time_manager = other.time_manager;
         Ok(())
     }
 
@@ -60,12 +57,6 @@ impl Lfo {
         self.modulation
             .try_set(modulation_ctrl)
             .map_err(|err| err.set_origin("Lfo", "modulation"))
-    }
-}
-
-impl TimeKeeper for Lfo {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.time_manager = Rc::clone(&time_manager)
     }
 }
 
@@ -107,11 +98,12 @@ impl FunctionKeeper for Lfo {
 
 impl CtrlFunction for Lfo {
     fn get_value(&self, time: TimeStamp) -> f64 {
-        let phase =
-            ((self.time_manager.borrow().stamp_to_seconds(time) * TAU * self.freq.get_value(time)
-                / (SAMPLE_RATE as f64))
-                + self.phase_shift)
-                % TAU;
+        let phase = ((TIME_MANAGER.lock().unwrap().stamp_to_seconds(time)
+            * TAU
+            * self.freq.get_value(time)
+            / (SAMPLE_RATE as f64))
+            + self.phase_shift)
+            % TAU;
         (self
             .oscillator
             .get_sample(phase, self.modulation.get_value(time))

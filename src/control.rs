@@ -1,6 +1,6 @@
 use crate::{
     ctrl_f::{CtrlFunction, IdMap},
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    time::TimeStamp,
     utils,
 };
 use std::{
@@ -106,26 +106,6 @@ impl Source {
                 .into_iter()
                 .map(func)
                 .collect(),
-        }
-    }
-}
-
-impl TimeKeeper for Source {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        match self {
-            Source::Function { f, func_id: _ } => f.borrow_mut().set_time_manager(time_manager),
-            Source::WeigthedAverage { sources } => {
-                for (_, s) in sources {
-                    s.set_time_manager(Rc::clone(&time_manager));
-                }
-            }
-            Source::Product { sources } => {
-                for (_, s) in sources {
-                    s.set_time_manager(Rc::clone(&time_manager));
-                }
-            }
-            Source::Inverted { source } => source.set_time_manager(time_manager),
-            Source::Transformed { func: _, source } => source.set_time_manager(time_manager),
         }
     }
 }
@@ -391,15 +371,7 @@ impl FunctionKeeper for Control {
     }
 }
 
-impl TimeKeeper for Control {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        if let Some(source) = &mut self.source {
-            source.set_time_manager(time_manager)
-        }
-    }
-}
-
-pub trait FunctionKeeper: TimeKeeper {
+pub trait FunctionKeeper {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError>;
     fn test_sources(&self) -> Result<(), ControlError>;
     fn set_ids(&mut self);

@@ -1,18 +1,12 @@
-use std::{cell::RefCell, rc::Rc};
-
 use crate::{
     control::{ControlError, FunctionKeeper},
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    time::TimeStamp,
 };
 
 use super::{CtrlFunction, IdMap};
 
 #[derive(Debug)]
 pub struct PhantomF();
-
-impl TimeKeeper for PhantomF {
-    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
-}
 
 impl FunctionKeeper for PhantomF {
     fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {

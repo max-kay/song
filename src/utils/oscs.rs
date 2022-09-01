@@ -1,4 +1,4 @@
-use crate::consts::SAMPLE_RATE;
+use crate::globals::SAMPLE_RATE;
 use std::{
     f64::consts::{PI, TAU},
     fmt::Debug,

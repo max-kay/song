@@ -1,9 +1,9 @@
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::marker::PhantomData;
 
 use crate::{
     control::{Control, ControlError, FunctionKeeper},
     ctrl_f::IdMap,
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    time::TimeStamp,
     wave::Wave,
 };
 
@@ -31,12 +31,6 @@ impl<W: Wave> Volume<W> {
 impl<W: Wave> Default for Volume<W> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl<W: Wave> TimeKeeper for Volume<W> {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.volume.set_time_manager(time_manager)
     }
 }
 

@@ -5,7 +5,6 @@ use crate::{
         Constant, CtrlFunction, Envelope, FunctionManager, FunctionMngrKeeper, FunctionOwner,
         IdMap, IdMapOrErr, Lfo,
     },
-    time::{TimeKeeper, TimeManager},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc, result::Result};
 
@@ -17,7 +16,6 @@ pub struct LocalFManager {
     pub(crate) lfo1: Rc<RefCell<Lfo>>,
     pub(crate) lfo2: Rc<RefCell<Lfo>>,
     pub(crate) track_functions: Rc<RefCell<FunctionManager>>,
-    pub(crate) time_manager: Rc<RefCell<TimeManager>>,
 }
 
 impl LocalFManager {
@@ -29,7 +27,6 @@ impl LocalFManager {
             lfo1: Rc::new(RefCell::new(Lfo::default())),
             lfo2: Rc::new(RefCell::new(Lfo::default())),
             track_functions: Rc::new(RefCell::new(FunctionManager::new())),
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 }
@@ -43,24 +40,6 @@ impl Default for LocalFManager {
 impl LocalFManager {
     pub fn set_velocity(&mut self, velocity: f64) {
         self.current_velocity.borrow_mut().set(velocity)
-    }
-}
-
-impl TimeKeeper for LocalFManager {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.time_manager = Rc::clone(&time_manager);
-        self.lfo1
-            .borrow_mut()
-            .set_time_manager(Rc::clone(&time_manager));
-        self.lfo2
-            .borrow_mut()
-            .set_time_manager(Rc::clone(&time_manager));
-        self.main_envelope
-            .borrow_mut()
-            .set_time_manager(Rc::clone(&time_manager));
-        self.alt_envelope
-            .borrow_mut()
-            .set_time_manager(Rc::clone(&time_manager))
     }
 }
 

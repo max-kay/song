@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use crate::{consts::SAMPLE_RATE, control::ControlError, ctrl_f::IdMap};
+use crate::{control::ControlError, ctrl_f::IdMap, globals::SAMPLE_RATE};
 
 pub mod oscs;
 

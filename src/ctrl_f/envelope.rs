@@ -1,11 +1,10 @@
-use super::{CtrlFunction, IdMap, FunctionKeeper};
+use super::{CtrlFunction, FunctionKeeper, IdMap};
 use crate::{
-    consts::SAMPLE_RATE,
     control::{self, Control, ControlError},
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    globals::SAMPLE_RATE,
+    time::TimeStamp,
     utils,
 };
-use std::{cell::RefCell, rc::Rc};
 
 const TIME_RANGE: (f64, f64) = (0.0, 25.0);
 const HALF_LIFE_RANGE: (f64, f64) = (0.01, 10.0);
@@ -17,7 +16,6 @@ pub struct Envelope {
     sustain: Control,
     half_life: Option<Control>,
     release: Control,
-    time_manager: Rc<RefCell<TimeManager>>,
     id: usize,
 }
 
@@ -53,7 +51,6 @@ impl Envelope {
                 Ok(ctrl) => ctrl,
                 Err(err) => return Err(err.set_origin("Envelope", "release")),
             },
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
             id: utils::get_f_id(),
         })
     }
@@ -171,12 +168,6 @@ impl Envelope {
         self.release
             .try_set_checked(release_ctrl, self.id)
             .map_err(|err| err.set_origin("Lfo", "release"))
-    }
-}
-
-impl TimeKeeper for Envelope {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.time_manager = Rc::clone(&time_manager)
     }
 }
 

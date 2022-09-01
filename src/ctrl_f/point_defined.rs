@@ -1,11 +1,7 @@
-use crate::{
-    control::ControlError,
-    time::{TimeKeeper, TimeManager, TimeStamp},
-    utils,
-};
-use std::{cell::RefCell, cmp::Ordering, rc::Rc};
+use crate::{control::ControlError, globals::TIME_MANAGER, time::TimeStamp, utils};
+use std::cmp::Ordering;
 
-use super::{CtrlFunction, IdMap, FunctionKeeper};
+use super::{CtrlFunction, FunctionKeeper, IdMap};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
@@ -82,7 +78,6 @@ impl Interpolation {
 pub struct PointDefined {
     points: Vec<AutomationPoint>,
     interpolation: Interpolation,
-    time_manager: Rc<RefCell<TimeManager>>,
     id: usize,
 }
 
@@ -93,7 +88,6 @@ impl PointDefined {
         Self {
             points,
             interpolation,
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
             id: utils::get_f_id(),
         }
     }
@@ -110,13 +104,13 @@ impl PointDefined {
         }
         let val1 = p1.get_value();
         let val2 = p2.get_value();
-        let tot_secs = self
-            .time_manager
-            .borrow()
+        let tot_secs = TIME_MANAGER
+            .lock()
+            .unwrap()
             .duration_to_seconds(p1.get_time(), p2.get_time());
-        let part_secs = self
-            .time_manager
-            .borrow()
+        let part_secs = TIME_MANAGER
+            .lock()
+            .unwrap()
             .duration_to_seconds(p1.get_time(), time);
         (val1, val2, part_secs / tot_secs)
     }
@@ -126,12 +120,6 @@ impl PointDefined {
             vec![AutomationPoint::new(val, TimeStamp::zero())],
             Interpolation::Linear,
         )
-    }
-}
-
-impl TimeKeeper for PointDefined {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.time_manager = Rc::clone(&time_manager)
     }
 }
 
@@ -158,7 +146,7 @@ impl CtrlFunction for PointDefined {
     }
 
     fn get_vec(&self, onset: TimeStamp, samples: usize) -> Vec<f64> {
-        let time_stamps = self.time_manager.borrow().get_stamp_vec(onset, samples);
+        let time_stamps = TIME_MANAGER.lock().unwrap().get_stamp_vec(onset, samples);
         let mut out = Vec::with_capacity(samples);
         for t in time_stamps {
             out.push(self.get_value(t))

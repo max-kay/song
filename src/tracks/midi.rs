@@ -2,8 +2,9 @@ use crate::{
     control::{ControlError, FunctionKeeper},
     ctrl_f::{FunctionManager, FunctionOwner, IdMap, IdMapOrErr},
     effects::EffectPanel,
+    globals::TIME_MANAGER,
     instr::{EmptyInstrument, MidiInstrument},
-    time::{self, TimeKeeper, TimeManager},
+    time::{self},
     utils,
     wave::Wave,
 };
@@ -51,18 +52,6 @@ pub struct MidiTrack<W: Wave> {
     effects: EffectPanel<W>,
     notes: Vec<Note>,
     function_manager: Rc<RefCell<FunctionManager>>,
-    time_manager: Rc<RefCell<TimeManager>>,
-}
-
-impl<W: Wave> TimeKeeper for MidiTrack<W> {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.instrument.set_time_manager(Rc::clone(&time_manager));
-        self.effects.set_time_manager(Rc::clone(&time_manager));
-        self.function_manager
-            .borrow_mut()
-            .set_time_manager(Rc::clone(&time_manager));
-        self.time_manager = Rc::clone(&time_manager)
-    }
 }
 
 impl<W: Wave> MidiTrack<W> {
@@ -81,13 +70,13 @@ impl<W: Wave + 'static> MidiTrack<W> {
             effects: EffectPanel::EmptyLeaf,
             function_manager: Rc::new(RefCell::new(FunctionManager::new())),
             notes: Vec::new(),
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
+
     pub fn play(&self) -> W {
         let mut wave = self.instrument.play_notes(&self.notes);
         self.effects
-            .apply_to(&mut wave, self.time_manager.borrow().zero());
+            .apply_to(&mut wave, TIME_MANAGER.lock().unwrap().zero());
         wave.scale(self.gain);
         wave
     }
@@ -101,7 +90,6 @@ impl<W: Wave + 'static> MidiTrack<W> {
             effects: EffectPanel::<W>::EmptyLeaf,
             function_manager,
             notes: Vec::new(),
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
 }

@@ -1,29 +1,26 @@
 use super::MidiInstrument;
 use crate::{
-    control::{Control, ControlError, Source, FunctionKeeper},
+    control::{Control, ControlError, FunctionKeeper, Source},
     ctrl_f::{
-        self, Envelope, FunctionManager, FunctionMngrKeeper, FunctionOwner,
-        IdMap, IdMapOrErr, Lfo,
+        self, Envelope, FunctionManager, FunctionMngrKeeper, FunctionOwner, IdMap, IdMapOrErr, Lfo,
     },
     effects::EffectPanel,
-    time::{self, TimeManager, TimeStamp},
+    globals::TIME_MANAGER,
+    time::TimeStamp,
     tracks::midi,
-    utils::{oscs::Oscillator},
+    utils::oscs::Oscillator,
     wave::Wave,
 };
-use std::{
-    cell::RefCell, path::Path, rc::Rc, result::Result,
-};
+use std::{cell::RefCell, path::Path, rc::Rc, result::Result};
 
 const PITCH_WHEEL_RANGE: (f64, f64) = (-4800.0, 4800.0);
 const VOL_CTRL_RANGE: (f64, f64) = (0.0, 5.0);
 
-pub mod osc_panel;
 pub mod local_f_manager;
+pub mod osc_panel;
 
 pub use local_f_manager::LocalFManager;
 pub use osc_panel::OscPanel;
-
 
 #[derive(Debug)]
 pub struct Synthesizer<W: Wave> {
@@ -34,7 +31,6 @@ pub struct Synthesizer<W: Wave> {
     pitch_control: Control,
     modulation_control: Control,
     volume_control: Control,
-    time_manager: Rc<RefCell<TimeManager>>,
 }
 
 impl<W: Wave> Synthesizer<W> {
@@ -47,30 +43,16 @@ impl<W: Wave> Synthesizer<W> {
             modulation_control: Control::from_val_in_unit(0.5).unwrap(),
             volume_control: Control::from_val_in_unit(1.0).unwrap(),
             oscillators: OscPanel::default(),
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
-    }
-}
-
-impl<W: Wave> time::TimeKeeper for Synthesizer<W> {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.effects.set_time_manager(Rc::clone(&time_manager));
-        self.fuctions
-            .borrow_mut()
-            .set_time_manager(Rc::clone(&time_manager));
-        self.pitch_control
-            .set_time_manager(Rc::clone(&time_manager));
-        self.modulation_control
-            .set_time_manager(Rc::clone(&time_manager))
     }
 }
 
 impl<W: Wave> Synthesizer<W> {
     fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> W {
         self.fuctions.borrow_mut().set_velocity(velocity);
-        let sus_samples = self
-            .time_manager
-            .borrow()
+        let sus_samples = TIME_MANAGER
+            .lock()
+            .unwrap()
             .duration_to_samples(note_on, note_off);
 
         let envelope = self
@@ -193,7 +175,10 @@ impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
         let mut wave = W::new();
         for note in notes {
             let sound = self.play_note(*note);
-            wave.add_consuming(sound, self.time_manager.borrow().stamp_to_samples(note.on));
+            wave.add_consuming(
+                sound,
+                TIME_MANAGER.lock().unwrap().stamp_to_samples(note.on),
+            );
         }
         wave
     }
@@ -299,8 +284,8 @@ impl<W: Wave> Synthesizer<W> {
 
 impl<W: Wave> Synthesizer<W> {
     pub fn play_test_chord(&self) -> W {
-        let note_on = self.time_manager.borrow().zero();
-        let note_off = self.time_manager.borrow().seconds_to_stamp(6.0);
+        let note_on = TIME_MANAGER.lock().unwrap().zero();
+        let note_off = TIME_MANAGER.lock().unwrap().seconds_to_stamp(6.0);
         let mut wave = self.play_freq(note_on, note_off, 300.0, 0.7);
         wave.add_consuming(self.play_freq(note_on, note_off, 375.0, 0.7), 0);
         wave.add_consuming(self.play_freq(note_on, note_off, 450.0, 0.7), 0);

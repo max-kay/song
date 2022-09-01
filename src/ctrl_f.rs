@@ -1,6 +1,6 @@
 use crate::{
     control::{ControlError, FunctionKeeper},
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    time::TimeStamp,
 };
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 
@@ -52,7 +52,7 @@ pub trait CtrlFunction: Debug + FunctionKeeper {
     unsafe fn new_id_f(&mut self);
 }
 
-pub trait FunctionOwner: TimeKeeper {
+pub trait FunctionOwner {
     /// .
     ///
     /// # Safety
@@ -88,16 +88,6 @@ impl FunctionManager {
 impl Default for FunctionManager {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl TimeKeeper for FunctionManager {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        for control in self.channels.values_mut() {
-            control
-                .borrow_mut()
-                .set_time_manager(Rc::clone(&time_manager))
-        }
     }
 }
 

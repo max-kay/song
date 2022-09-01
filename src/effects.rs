@@ -1,10 +1,10 @@
 use crate::{
     control::{Control, ControlError, FunctionKeeper},
     ctrl_f::IdMap,
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    time::TimeStamp,
     wave::Wave,
 };
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::fmt::Debug;
 
 pub mod delay;
 pub mod reverb;
@@ -14,7 +14,7 @@ pub use delay::Delay;
 
 trait EffMarker<W: Wave>: Effect<W> + Default {}
 
-pub trait Effect<W: Wave>: Debug + TimeKeeper + FunctionKeeper {
+pub trait Effect<W: Wave>: Debug + FunctionKeeper {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn on(&mut self);
@@ -40,20 +40,6 @@ impl<W: Wave> EffectPanel<W> {
                     let mut this_wave = original.clone();
                     node.apply_to(&mut this_wave, time_triggered);
                     wave.add_consuming(this_wave, 0)
-                }
-            }
-            EffectPanel::EmptyLeaf => (),
-        }
-    }
-}
-
-impl<W: Wave> TimeKeeper for EffectPanel<W> {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        match self {
-            EffectPanel::Leaf(eff) => eff.set_time_manager(time_manager),
-            EffectPanel::Node(vec) => {
-                for node in vec {
-                    node.set_time_manager(Rc::clone(&time_manager))
                 }
             }
             EffectPanel::EmptyLeaf => (),

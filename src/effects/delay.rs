@@ -2,11 +2,12 @@ use super::{Control, EffMarker, Effect};
 use crate::{
     control::{ControlError, FunctionKeeper},
     ctrl_f::IdMap,
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    globals::TIME_MANAGER,
+    time::TimeStamp,
     utils,
     wave::Wave,
 };
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::marker::PhantomData;
 
 const SMALLEST_GAIN_ALLOWED: f64 = 0.05;
 const GAIN_RANGE: (f64, f64) = (0.0, 0.95);
@@ -15,7 +16,6 @@ const DELTA_T_RANGE: (f64, f64) = (0.001, 6.0);
 #[derive(Debug)]
 pub struct Delay<W: Wave> {
     phantom: PhantomData<W>,
-    time_manager: Rc<RefCell<TimeManager>>,
     on: bool,
     gain: Control,
     delta_t: Control,
@@ -25,7 +25,6 @@ impl<W: Wave> Delay<W> {
     pub fn new() -> Self {
         Self {
             phantom: PhantomData,
-            time_manager: Rc::new(RefCell::new(TimeManager::default())),
             on: true,
             gain: Control::from_val_in_range(0.6, GAIN_RANGE).unwrap(),
             delta_t: Control::from_val_in_range(0.6, DELTA_T_RANGE).unwrap(),
@@ -36,14 +35,6 @@ impl<W: Wave> Delay<W> {
 impl<W: Wave> Default for Delay<W> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl<W: Wave> TimeKeeper for Delay<W> {
-    fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
-        self.time_manager = Rc::clone(&time_manager);
-        self.gain.set_time_manager(Rc::clone(&time_manager));
-        self.delta_t.set_time_manager(Rc::clone(&time_manager));
     }
 }
 
@@ -87,9 +78,9 @@ impl<W: Wave> Effect<W> for Delay<W> {
         while gain > SMALLEST_GAIN_ALLOWED {
             source.scale(gain);
             wave.add(&source, utils::seconds_to_samples(delta_t));
-            current_time = self
-                .time_manager
-                .borrow()
+            current_time = TIME_MANAGER
+                .lock()
+                .unwrap()
                 .add_seconds_to_stamp(current_time, delta_t);
             delta_t += self.delta_t.get_value(current_time);
             gain *= self.gain.get_value(current_time);

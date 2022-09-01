@@ -2,12 +2,12 @@ use super::PITCH_WHEEL_RANGE;
 use crate::{
     control::{Control, ControlError, FunctionKeeper},
     ctrl_f::IdMap,
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    time::TimeStamp,
     utils,
     utils::oscs::Oscillator,
     wave::Wave,
 };
-use std::{cell::RefCell, marker::PhantomData, rc::Rc, result::Result};
+use std::{marker::PhantomData, result::Result};
 
 #[derive(Debug)]
 pub struct OscPanel<W: Wave> {
@@ -69,10 +69,6 @@ impl<W: Wave> OscPanel<W> {
             .push(Control::from_val_in_range(0.0, PITCH_WHEEL_RANGE).unwrap());
         self.weights.push(Control::from_val_in_unit(1.0).unwrap());
     }
-}
-
-impl<W: Wave> TimeKeeper for OscPanel<W> {
-    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
 impl<W: Wave> FunctionKeeper for OscPanel<W> {

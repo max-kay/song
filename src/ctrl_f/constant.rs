@@ -1,11 +1,10 @@
 use crate::{
     control::ControlError,
-    time::{TimeKeeper, TimeManager, TimeStamp},
+    time::TimeStamp,
     utils::{self, get_f_id},
 };
-use std::{cell::RefCell, rc::Rc};
 
-use super::{CtrlFunction, FunctionOwner, IdMap, IdMapOrErr, FunctionKeeper};
+use super::{CtrlFunction, FunctionKeeper, FunctionOwner, IdMap, IdMapOrErr};
 
 #[derive(Debug, Default)]
 pub struct Constant {
@@ -24,10 +23,6 @@ impl Constant {
         assert!((0.0..=1.0).contains(&value));
         self.val = value
     }
-}
-
-impl TimeKeeper for Constant {
-    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
 impl FunctionKeeper for Constant {

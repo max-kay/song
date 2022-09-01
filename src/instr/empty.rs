@@ -2,7 +2,6 @@ use super::{midi, MidiInstrument};
 use crate::{
     control::{ControlError, FunctionKeeper},
     ctrl_f::{FunctionManager, FunctionMngrKeeper, FunctionOwner, IdMap, IdMapOrErr},
-    time::{TimeKeeper, TimeManager},
     wave::Wave,
 };
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
@@ -23,10 +22,6 @@ impl<W: Wave> Default for EmptyInstrument<W> {
     fn default() -> Self {
         Self::new()
     }
-}
-
-impl<W: Wave> TimeKeeper for EmptyInstrument<W> {
-    fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
 impl<W: Wave> FunctionKeeper for EmptyInstrument<W> {

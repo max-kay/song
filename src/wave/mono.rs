@@ -2,7 +2,7 @@ use std::{iter::zip, path::Path};
 
 use hound::WavSpec;
 
-use crate::{consts::SAMPLE_RATE, utils};
+use crate::{globals::SAMPLE_RATE, utils};
 
 use super::Wave;
 
