@@ -1,7 +1,7 @@
-use crate::{control::ControlError, globals::TIME_MANAGER, time::TimeStamp, utils};
+use crate::{ctrl_f::ControlError, globals::TIME_MANAGER, time::TimeStamp, utils};
 use std::cmp::Ordering;
 
-use super::{CtrlFunction, FunctionKeeper, IdMap};
+use super::CtrlFunction;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
@@ -78,7 +78,6 @@ impl Interpolation {
 pub struct PointDefined {
     points: Vec<AutomationPoint>,
     interpolation: Interpolation,
-    id: usize,
 }
 
 impl PointDefined {
@@ -88,7 +87,6 @@ impl PointDefined {
         Self {
             points,
             interpolation,
-            id: utils::get_f_id(),
         }
     }
 
@@ -123,22 +121,6 @@ impl PointDefined {
     }
 }
 
-impl FunctionKeeper for PointDefined {
-    fn heal_sources(&mut self, _id_map: &IdMap) -> Result<(), ControlError> {
-        Ok(())
-    }
-
-    fn test_sources(&self) -> Result<(), ControlError> {
-        Ok(())
-    }
-
-    fn set_ids(&mut self) {}
-
-    fn get_ids(&self) -> Vec<usize> {
-        vec![self.get_id()]
-    }
-}
-
 impl CtrlFunction for PointDefined {
     fn get_value(&self, time: TimeStamp) -> f64 {
         let (val1, val2, progress) = self.find_around(time);
@@ -152,13 +134,5 @@ impl CtrlFunction for PointDefined {
             out.push(self.get_value(t))
         }
         out
-    }
-
-    fn get_id(&self) -> usize {
-        self.id
-    }
-
-    unsafe fn new_id_f(&mut self) {
-        self.id = utils::get_f_id()
     }
 }

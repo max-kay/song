@@ -1,8 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    control::{Control, ControlError, FunctionKeeper},
-    ctrl_f::IdMap,
+    ctrl_f::{Control, ControlError},
     time::TimeStamp,
     wave::Wave,
 };
@@ -34,27 +33,6 @@ impl<W: Wave> Default for Volume<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for Volume<W> {
-    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
-        self.volume
-            .heal_sources(id_map)
-            .map_err(|err| err.set_origin("Volume", "volume"))
-    }
-
-    fn test_sources(&self) -> Result<(), ControlError> {
-        self.volume
-            .test_sources()
-            .map_err(|err| err.set_origin("Volume", "volume"))
-    }
-
-    fn set_ids(&mut self) {
-        self.volume.set_ids()
-    }
-
-    fn get_ids(&self) -> Vec<usize> {
-        self.volume.get_ids()
-    }
-}
 
 impl<W: Wave> Effect<W> for Volume<W> {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {

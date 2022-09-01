@@ -3,7 +3,6 @@
 use tracks::Track;
 use wave::Wave;
 
-pub mod control;
 pub mod ctrl_f;
 pub mod effects;
 pub mod globals;

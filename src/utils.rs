@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use crate::{control::ControlError, ctrl_f::IdMap, globals::SAMPLE_RATE};
+use crate::{ctrl_f::ControlError, globals::SAMPLE_RATE};
 
 pub mod oscs;
 
@@ -61,11 +61,6 @@ pub fn mul_elementwise<T: MulAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
 //     }
 // }
 
-pub fn get_f_id() -> usize {
-    static COUNTER: AtomicUsize = AtomicUsize::new(1);
-    COUNTER.fetch_add(1, Ordering::Relaxed)
-}
-
 pub fn max_abs_f64(vec: &[f64]) -> f64 {
     let max = vec
         .iter()
@@ -114,13 +109,4 @@ mod test {
         let v2: Vec<i32> = vec![4, 5, 1, 7];
         add_elementwise(&mut v1, v2);
     }
-}
-
-pub fn my_extend(map: &mut IdMap, other: IdMap) -> Result<(), ControlError> {
-    for (key, func) in other.into_iter() {
-        if let Some(func) = map.insert(key, func) {
-            return Err(ControlError::new_double_id_err(func.borrow().get_id()));
-        }
-    }
-    Ok(())
 }

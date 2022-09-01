@@ -1,12 +1,5 @@
 use super::{Control, EffMarker, Effect};
-use crate::{
-    control::{ControlError, FunctionKeeper},
-    ctrl_f::IdMap,
-    globals::TIME_MANAGER,
-    time::TimeStamp,
-    utils,
-    wave::Wave,
-};
+use crate::{ctrl_f::ControlError, globals::TIME_MANAGER, time::TimeStamp, utils, wave::Wave};
 use std::marker::PhantomData;
 
 const SMALLEST_GAIN_ALLOWED: f64 = 0.05;
@@ -35,37 +28,6 @@ impl<W: Wave> Delay<W> {
 impl<W: Wave> Default for Delay<W> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl<W: Wave> FunctionKeeper for Delay<W> {
-    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
-        self.delta_t
-            .heal_sources(id_map)
-            .map_err(|err| err.set_origin("Delay", "delta_t"))?;
-        self.gain
-            .heal_sources(id_map)
-            .map_err(|err| err.set_origin("Delay", "gain"))
-    }
-
-    fn test_sources(&self) -> Result<(), ControlError> {
-        self.delta_t
-            .test_sources()
-            .map_err(|err| err.set_origin("Delay", "delta_t"))?;
-        self.gain
-            .test_sources()
-            .map_err(|err| err.set_origin("Delay", "gain"))
-    }
-
-    fn set_ids(&mut self) {
-        self.delta_t.set_ids();
-        self.gain.set_ids()
-    }
-
-    fn get_ids(&self) -> Vec<usize> {
-        let mut ids = self.delta_t.get_ids();
-        ids.append(&mut self.gain.get_ids());
-        ids
     }
 }
 

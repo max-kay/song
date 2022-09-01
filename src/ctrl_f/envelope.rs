@@ -1,6 +1,6 @@
-use super::{CtrlFunction, FunctionKeeper, IdMap};
+use super::{CtrlFunction};
 use crate::{
-    control::{self, Control, ControlError},
+    ctrl_f::{self, Control, ControlError},
     globals::SAMPLE_RATE,
     time::TimeStamp,
     utils,
@@ -16,7 +16,6 @@ pub struct Envelope {
     sustain: Control,
     half_life: Option<Control>,
     release: Control,
-    id: usize,
 }
 
 impl Envelope {
@@ -51,7 +50,6 @@ impl Envelope {
                 Ok(ctrl) => ctrl,
                 Err(err) => return Err(err.set_origin("Envelope", "release")),
             },
-            id: utils::get_f_id(),
         })
     }
 
@@ -137,103 +135,23 @@ impl Envelope {
     }
 
     pub fn set_attack(&mut self, attack_ctrl: Control) -> Result<(), ControlError> {
-        self.attack
-            .try_set_checked(attack_ctrl, self.id)
-            .map_err(|err| err.set_origin("Lfo", "attack"))
+        todo!()
     }
 
     pub fn set_decay(&mut self, decay_ctrl: Control) -> Result<(), ControlError> {
-        self.decay
-            .try_set_checked(decay_ctrl, self.id)
-            .map_err(|err| err.set_origin("Lfo", "decay"))
+        todo!()
     }
 
     pub fn set_sustain(&mut self, sustain_ctrl: Control) -> Result<(), ControlError> {
-        self.sustain
-            .try_set_checked(sustain_ctrl, self.id)
-            .map_err(|err| err.set_origin("Lfo", "sustain"))
+        todo!()
     }
 
     pub fn set_half_life(&mut self, half_life_ctrl: Control) -> Result<(), ControlError> {
-        control::opt_try_set_checked(
-            &mut self.half_life,
-            HALF_LIFE_RANGE,
-            half_life_ctrl,
-            self.id,
-        )
-        .map_err(|err| err.set_origin("Envelope", "halflife"))
+        todo!()
     }
 
     pub fn set_release(&mut self, release_ctrl: Control) -> Result<(), ControlError> {
-        self.release
-            .try_set_checked(release_ctrl, self.id)
-            .map_err(|err| err.set_origin("Lfo", "release"))
-    }
-}
-
-impl FunctionKeeper for Envelope {
-    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
-        self.attack
-            .heal_sources(id_map)
-            .map_err(|err| err.set_origin("Envelope", "attack"))?;
-        self.decay
-            .heal_sources(id_map)
-            .map_err(|err| err.set_origin("Envelope", "decay"))?;
-        self.sustain
-            .heal_sources(id_map)
-            .map_err(|err| err.set_origin("Envelope", "sustain"))?;
-        self.release
-            .heal_sources(id_map)
-            .map_err(|err| err.set_origin("Envelope", "release"))?;
-        if let Some(half_life) = &mut self.half_life {
-            half_life
-                .heal_sources(id_map)
-                .map_err(|err| err.set_origin("Envelope", "half_life"))?
-        };
-        Ok(())
-    }
-
-    fn test_sources(&self) -> Result<(), ControlError> {
-        self.attack
-            .test_sources()
-            .map_err(|err| err.set_origin("Envelope", "attack"))?;
-        self.decay
-            .test_sources()
-            .map_err(|err| err.set_origin("Envelope", "decay"))?;
-        self.sustain
-            .test_sources()
-            .map_err(|err| err.set_origin("Envelope", "sustain"))?;
-        self.release
-            .test_sources()
-            .map_err(|err| err.set_origin("Envelope", "release"))?;
-        if let Some(half_life) = &self.half_life {
-            half_life
-                .test_sources()
-                .map_err(|err| err.set_origin("Envelope", "half_life"))?
-        };
-        Ok(())
-    }
-
-    fn set_ids(&mut self) {
-        self.attack.set_ids();
-        self.decay.set_ids();
-        self.sustain.set_ids();
-        self.release.set_ids();
-        if let Some(half_life) = &mut self.half_life {
-            half_life.set_ids()
-        }
-    }
-
-    fn get_ids(&self) -> Vec<usize> {
-        let mut ids = vec![self.get_id()];
-        ids.append(&mut self.attack.get_ids());
-        ids.append(&mut self.decay.get_ids());
-        ids.append(&mut self.sustain.get_ids());
-        if let Some(func) = &self.half_life {
-            ids.append(&mut func.get_ids())
-        };
-        ids.append(&mut self.release.get_ids());
-        ids
+        todo!()
     }
 }
 
@@ -255,27 +173,4 @@ impl CtrlFunction for Envelope {
             self.get_envelope(samples - release, start)
         }
     }
-
-    fn get_id(&self) -> usize {
-        self.id
-    }
-
-    unsafe fn new_id_f(&mut self) {
-        self.id = utils::get_f_id()
-    }
-
-    // fn get_sub_ids(&self) -> Vec<usize> {
-    //     let mut ids = Vec::new();
-    //     ids.append(&mut self.attack.get_ids());
-    //     ids.append(&mut self.decay.get_ids());
-    //     ids.append(&mut self.sustain.get_ids());
-    //     if let Some(half_life) = &self.half_life {
-    //         ids.append(&mut half_life.get_ids())
-    //     }
-    //     ids.append(&mut self.release.get_ids());
-    //     ids
-    // }
 }
-
-#[cfg(test)]
-mod test {}

@@ -1,6 +1,5 @@
 use crate::{
-    control::{Control, ControlError, FunctionKeeper},
-    ctrl_f::IdMap,
+    ctrl_f::{Control, ControlError},
     time::TimeStamp,
     wave::Wave,
 };
@@ -14,7 +13,7 @@ pub use delay::Delay;
 
 trait EffMarker<W: Wave>: Effect<W> + Default {}
 
-pub trait Effect<W: Wave>: Debug + FunctionKeeper {
+pub trait Effect<W: Wave>: Debug {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn on(&mut self);
@@ -43,66 +42,6 @@ impl<W: Wave> EffectPanel<W> {
                 }
             }
             EffectPanel::EmptyLeaf => (),
-        }
-    }
-}
-
-impl<W: Wave> FunctionKeeper for EffectPanel<W> {
-    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
-        match self {
-            EffectPanel::Leaf(eff) => eff
-                .heal_sources(id_map)
-                .map_err(|err| err.push_location("EffectPanel::Leaf")),
-            EffectPanel::Node(vec) => {
-                for node in vec {
-                    node.heal_sources(id_map)
-                        .map_err(|err| err.push_location("EffectPanel::Node"))?;
-                }
-                Ok(())
-            }
-            EffectPanel::EmptyLeaf => Ok(()),
-        }
-    }
-
-    fn test_sources(&self) -> Result<(), ControlError> {
-        match self {
-            EffectPanel::Leaf(eff) => eff
-                .test_sources()
-                .map_err(|err| err.push_location("EffectPanel::Leaf")),
-            EffectPanel::Node(vec) => {
-                for node in vec {
-                    node.test_sources()
-                        .map_err(|err| err.push_location("EffectPanel::Node"))?;
-                }
-                Ok(())
-            }
-            EffectPanel::EmptyLeaf => Ok(()),
-        }
-    }
-
-    fn set_ids(&mut self) {
-        match self {
-            EffectPanel::Leaf(eff) => eff.set_ids(),
-            EffectPanel::Node(vec) => {
-                for node in vec {
-                    node.set_ids()
-                }
-            }
-            EffectPanel::EmptyLeaf => (),
-        }
-    }
-
-    fn get_ids(&self) -> Vec<usize> {
-        match self {
-            EffectPanel::Leaf(eff) => eff.get_ids(),
-            EffectPanel::Node(vec) => {
-                let mut ids = Vec::new();
-                for panel in vec {
-                    ids.append(&mut panel.get_ids())
-                }
-                ids
-            }
-            EffectPanel::EmptyLeaf => Vec::new(),
         }
     }
 }

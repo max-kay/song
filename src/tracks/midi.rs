@@ -1,11 +1,8 @@
 use crate::{
-    control::{ControlError, FunctionKeeper},
-    ctrl_f::{FunctionManager, FunctionOwner, IdMap, IdMapOrErr},
     effects::EffectPanel,
     globals::TIME_MANAGER,
     instr::{EmptyInstrument, MidiInstrument},
     time::{self},
-    utils,
     wave::Wave,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -51,14 +48,6 @@ pub struct MidiTrack<W: Wave> {
     gain: f64,
     effects: EffectPanel<W>,
     notes: Vec<Note>,
-    function_manager: Rc<RefCell<FunctionManager>>,
-}
-
-impl<W: Wave> MidiTrack<W> {
-    pub fn set_function_manager(&mut self) {
-        self.instrument
-            .set_fuction_manager(Rc::clone(&self.function_manager));
-    }
 }
 
 impl<W: Wave + 'static> MidiTrack<W> {
@@ -68,7 +57,6 @@ impl<W: Wave + 'static> MidiTrack<W> {
             instrument: Box::new(EmptyInstrument::<W>::new()),
             gain: 1.0,
             effects: EffectPanel::EmptyLeaf,
-            function_manager: Rc::new(RefCell::new(FunctionManager::new())),
             notes: Vec::new(),
         }
     }
@@ -82,13 +70,11 @@ impl<W: Wave + 'static> MidiTrack<W> {
     }
 
     pub fn from_instrument(instrument: Box<dyn MidiInstrument<W>>) -> Self {
-        let function_manager = Rc::new(RefCell::new(FunctionManager::new()));
         Self {
             name: String::from(instrument.name()),
             instrument,
             gain: 1.0,
             effects: EffectPanel::<W>::EmptyLeaf,
-            function_manager,
             notes: Vec::new(),
         }
     }
@@ -100,57 +86,6 @@ impl<W: Wave> MidiTrack<W> {
     }
 }
 
-impl<W: Wave> FunctionOwner for MidiTrack<W> {
-    unsafe fn new_ids(&mut self) {
-        self.instrument.new_ids();
-        self.function_manager.borrow_mut().new_ids();
-    }
-
-    fn get_id_map(&self) -> IdMapOrErr {
-        let mut map = self.instrument.get_id_map()?;
-        utils::my_extend(&mut map, self.function_manager.borrow().get_id_map()?)?;
-        Ok(map)
-    }
-}
-
-impl<W: Wave> FunctionKeeper for MidiTrack<W> {
-    fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
-        self.instrument
-            .heal_sources(id_map)
-            .map_err(|err| err.push_location("MidiTrack"))?;
-        self.effects
-            .heal_sources(id_map)
-            .map_err(|err| err.push_location("MidiTrack"))?;
-        self.function_manager
-            .borrow_mut()
-            .heal_sources(id_map)
-            .map_err(|err| err.push_location("MidiTrack"))
-    }
-
-    fn test_sources(&self) -> Result<(), ControlError> {
-        self.instrument
-            .test_sources()
-            .map_err(|err| err.push_location("MidiTrackr"))?;
-        self.effects
-            .test_sources()
-            .map_err(|err| err.push_location("MidiTrack"))?;
-        self.function_manager.borrow_mut().test_sources()
-    }
-
-    fn set_ids(&mut self) {
-        self.instrument.set_ids();
-        self.effects.set_ids();
-        self.function_manager.borrow_mut().set_ids();
-    }
-
-    fn get_ids(&self) -> Vec<usize> {
-        let mut ids = Vec::new();
-        ids.append(&mut self.instrument.get_ids());
-        ids.append(&mut self.effects.get_ids());
-        ids.append(&mut self.function_manager.borrow().get_ids());
-        ids
-    }
-}
 
 impl<W: 'static + Wave> Default for MidiTrack<W> {
     fn default() -> Self {
