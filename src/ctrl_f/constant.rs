@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     control::ControlError,
     time::{TimeKeeper, TimeManager, TimeStamp},
@@ -5,9 +7,9 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-use super::{CtrlFunction, FunctionOwner, IdMap, IdMapOrErr, FunctionKeeper};
+use super::{CtrlFunction, FunctionKeeper, FunctionOwner, IdMap, IdMapOrErr};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Constant {
     val: f64,
     id: usize,
@@ -54,6 +56,7 @@ impl FunctionOwner for Constant {
     }
 }
 
+#[typetag::serde]
 impl CtrlFunction for Constant {
     fn get_value(&self, _time: TimeStamp) -> f64 {
         self.val

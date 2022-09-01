@@ -1,0 +1,171 @@
+(
+    name: "hello",
+    tracks: [
+        Midi((
+            name: "first",
+            instrument: {
+                "Synthesizer": (
+                    name: "first",
+                    effects: Leaf({
+                        "Delay": (
+                            on: true,
+                            gain: (
+                                value: 0.631578947368421,
+                                range: (0.0, 0.95),
+                                source: None,
+                            ),
+                            delta_t: (
+                                value: 0.09984997499583265,
+                                range: (0.001, 6.0),
+                                source: None,
+                            ),
+                        ),
+                    }),
+                    oscillators: (
+                        oscillators: [
+                            Sine,
+                            ModSaw,
+                        ],
+                        weights: [
+                            (
+                                value: 1.0,
+                                range: (0.0, 1.0),
+                                source: None,
+                            ),
+                            (
+                                value: 1.0,
+                                range: (0.0, 1.0),
+                                source: None,
+                            ),
+                        ],
+                        pitch_offsets: [
+                            (
+                                value: 0.5,
+                                range: (-4800.0, 4800.0),
+                                source: None,
+                            ),
+                            (
+                                value: 0.5,
+                                range: (-4800.0, 4800.0),
+                                source: None,
+                            ),
+                        ],
+                    ),
+                    fuctions: (
+                        main_envelope: (
+                            attack: (
+                                value: 0.004,
+                                range: (0.0, 25.0),
+                                source: None,
+                            ),
+                            decay: (
+                                value: 0.006,
+                                range: (0.0, 25.0),
+                                source: None,
+                            ),
+                            sustain: (
+                                value: 0.8,
+                                range: (0.0, 1.0),
+                                source: None,
+                            ),
+                            half_life: None,
+                            release: (
+                                value: 0.024,
+                                range: (0.0, 25.0),
+                                source: None,
+                            ),
+                            id: 1,
+                        ),
+                        alt_envelope: (
+                            attack: (
+                                value: 0.004,
+                                range: (0.0, 25.0),
+                                source: None,
+                            ),
+                            decay: (
+                                value: 0.006,
+                                range: (0.0, 25.0),
+                                source: None,
+                            ),
+                            sustain: (
+                                value: 0.8,
+                                range: (0.0, 1.0),
+                                source: None,
+                            ),
+                            half_life: None,
+                            release: (
+                                value: 0.024,
+                                range: (0.0, 25.0),
+                                source: None,
+                            ),
+                            id: 2,
+                        ),
+                        lfo1: (
+                            oscillator: ModSaw,
+                            freq: (
+                                value: 0.04995249762488125,
+                                range: (0.001, 20.0),
+                                source: None,
+                            ),
+                            modulation: (
+                                value: 0.0,
+                                range: (0.0, 1.0),
+                                source: None,
+                            ),
+                            phase_shift: 0.0,
+                            id: 3,
+                        ),
+                        lfo2: (
+                            oscillator: ModSaw,
+                            freq: (
+                                value: 0.0999549977498875,
+                                range: (0.001, 20.0),
+                                source: None,
+                            ),
+                            modulation: (
+                                value: 0.0,
+                                range: (0.0, 1.0),
+                                source: None,
+                            ),
+                            phase_shift: 0.0,
+                            id: 4,
+                        ),
+                    ),
+                    pitch_control: (
+                        value: 0.5,
+                        range: (0.0, 1.0),
+                        source: None,
+                    ),
+                    modulation_control: (
+                        value: 0.5,
+                        range: (0.0, 1.0),
+                        source: None,
+                    ),
+                    volume_control: (
+                        value: 0.2,
+                        range: (0.0, 5.0),
+                        source: Some(Function(
+                            func_id: 3,
+                        )),
+                    ),
+                ),
+            },
+            gain: 1.0,
+            effects: EmptyLeaf,
+            notes: [],
+            function_manager: {},
+            time_manager: (
+                ticks_per_beat: 120,
+                beats_per_bar: 4,
+                beat_value: 4,
+                beats_per_seconds: 2.0,
+            ),
+        )),
+    ],
+    time_manager: (
+        ticks_per_beat: 120,
+        beats_per_bar: 4,
+        beat_value: 4,
+        beats_per_seconds: 2.0,
+    ),
+)

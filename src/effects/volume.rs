@@ -1,4 +1,6 @@
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+
+use serde::{Deserialize, Serialize};
 
 use crate::{
     control::{Control, ControlError, FunctionKeeper},
@@ -7,40 +9,38 @@ use crate::{
     wave::Wave,
 };
 
-use super::{EffMarker, Effect};
+use super::Effect;
 
 const VOL_RANGE: (f64, f64) = (0.0, 5.0);
 
-#[derive(Debug)]
-pub struct Volume<W> {
-    phantom: PhantomData<W>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Volume {
     volume: Control,
     on: bool,
 }
 
-impl<W: Wave> Volume<W> {
+impl Volume {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
             volume: Control::from_val_in_range(1.0, VOL_RANGE).unwrap(),
             on: true,
         }
     }
 }
 
-impl<W: Wave> Default for Volume<W> {
+impl Default for Volume {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W: Wave> TimeKeeper for Volume<W> {
+impl TimeKeeper for Volume {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.volume.set_time_manager(time_manager)
     }
 }
 
-impl<W: Wave> FunctionKeeper for Volume<W> {
+impl FunctionKeeper for Volume {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.volume
             .heal_sources(id_map)
@@ -62,8 +62,9 @@ impl<W: Wave> FunctionKeeper for Volume<W> {
     }
 }
 
-impl<W: Wave> Effect<W> for Volume<W> {
-    fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
+#[typetag::serde]
+impl Effect for Volume {
+    fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp) {
         if self.on {
             let vol = self.volume.get_vec(time_triggered, wave.len());
             wave.scale_by_vec(vol)
@@ -86,5 +87,3 @@ impl<W: Wave> Effect<W> for Volume<W> {
         self.on = !self.on
     }
 }
-
-impl<W: Wave> EffMarker<W> for Volume<W> {}

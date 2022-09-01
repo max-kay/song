@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::consts::SAMPLE_RATE;
 use std::{
     f64::consts::{PI, TAU},
     fmt::Debug,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Oscillator {
     Sine,
     ModSquare,

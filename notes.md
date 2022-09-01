@@ -3,3 +3,11 @@
 - think about setting Control exponential
 - make composed and transformed ctrl_functions
 - think about how to require TimeKeeper and AutomationKeeper
+- do I need Dyn clone?
+
+# VSCode
+- settings.json
+"rust-analyzer.procMacro.ignored": {
+    "serde": ["Serialize", "Deserialize"]
+    },
+should I do this ^

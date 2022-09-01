@@ -1,48 +1,75 @@
 use super::MidiInstrument;
 use crate::{
-    control::{Control, ControlError, Source, FunctionKeeper},
+    control::{Control, ControlError, FunctionKeeper, Source},
     ctrl_f::{
-        self, Envelope, FunctionManager, FunctionMngrKeeper, FunctionOwner,
-        IdMap, IdMapOrErr, Lfo,
+        self, Envelope, FunctionManager, FunctionMngrKeeper, FunctionOwner, IdMap, IdMapOrErr, Lfo,
     },
     effects::EffectPanel,
-    time::{self, TimeManager, TimeStamp},
+    time::{TimeKeeper, TimeManager, TimeStamp},
     tracks::midi,
-    utils::{oscs::Oscillator},
+    utils::oscs::Oscillator,
     wave::Wave,
 };
-use std::{
-    cell::RefCell, path::Path, rc::Rc, result::Result,
+use serde::{
+    de::{Deserialize, Deserializer},
+    ser::{Serialize, SerializeStruct},
 };
+use std::{cell::RefCell, path::Path, rc::Rc, result::Result};
 
 const PITCH_WHEEL_RANGE: (f64, f64) = (-4800.0, 4800.0);
 const VOL_CTRL_RANGE: (f64, f64) = (0.0, 5.0);
 
-pub mod osc_panel;
 pub mod local_f_manager;
+pub mod osc_panel;
 
 pub use local_f_manager::LocalFManager;
 pub use osc_panel::OscPanel;
 
-
-#[derive(Debug)]
-pub struct Synthesizer<W: Wave> {
+#[derive(Debug, Clone)]
+pub struct Synthesizer<'fm, 'tm> {
     name: String,
-    effects: EffectPanel<W>,
-    oscillators: OscPanel<W>,
-    fuctions: Rc<RefCell<LocalFManager>>,
+    effects: EffectPanel,
+    oscillators: OscPanel,
+    functions: &'fm LocalFManager<'tm>,
     pitch_control: Control,
     modulation_control: Control,
     volume_control: Control,
-    time_manager: Rc<RefCell<TimeManager>>,
+    time_manager: &'tm TimeManager,
 }
 
-impl<W: Wave> Synthesizer<W> {
+// impl<'de> Deserialize<'de> for Synthesizer {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         todo!()
+//     }
+// }
+
+// impl Serialize for Synthesizer {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: serde::Serializer,
+//     {
+//         let mut state = serializer.serialize_struct("Synthesizer", 8)?;
+//         state.serialize_field("name", &self.name)?;
+//         state.serialize_field("effects", &self.effects)?;
+//         state.serialize_field("oscillators", &self.oscillators)?;
+//         state.serialize_field("fuctions", &self.functions.borrow().clone())?;
+//         state.serialize_field("pitch_control", &self.pitch_control)?;
+//         state.serialize_field("modulation_control", &self.modulation_control)?;
+//         state.serialize_field("volume_control", &self.volume_control)?;
+//         state.skip_field("time_manager")?;
+//         state.end()
+//     }
+// }
+
+impl Synthesizer {
     pub fn new(name: String) -> Self {
         Self {
             name,
             effects: EffectPanel::EmptyLeaf,
-            fuctions: Rc::new(RefCell::new(LocalFManager::new())),
+            functions: Rc::new(RefCell::new(LocalFManager::new())),
             pitch_control: Control::from_val_in_unit(0.5).unwrap(),
             modulation_control: Control::from_val_in_unit(0.5).unwrap(),
             volume_control: Control::from_val_in_unit(1.0).unwrap(),
@@ -52,10 +79,10 @@ impl<W: Wave> Synthesizer<W> {
     }
 }
 
-impl<W: Wave> time::TimeKeeper for Synthesizer<W> {
+impl TimeKeeper for Synthesizer {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.effects.set_time_manager(Rc::clone(&time_manager));
-        self.fuctions
+        self.functions
             .borrow_mut()
             .set_time_manager(Rc::clone(&time_manager));
         self.pitch_control
@@ -65,16 +92,16 @@ impl<W: Wave> time::TimeKeeper for Synthesizer<W> {
     }
 }
 
-impl<W: Wave> Synthesizer<W> {
-    fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> W {
-        self.fuctions.borrow_mut().set_velocity(velocity);
+impl Synthesizer {
+    fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> Wave {
+        self.functions.borrow_mut().set_velocity(velocity);
         let sus_samples = self
             .time_manager
             .borrow()
             .duration_to_samples(note_on, note_off);
 
         let envelope = self
-            .fuctions
+            .functions
             .borrow()
             .main_envelope
             .borrow()
@@ -88,7 +115,7 @@ impl<W: Wave> Synthesizer<W> {
             .collect();
 
         let modulation = self.modulation_control.get_vec(note_on, envelope.len());
-        let mut wave = W::zeros(envelope.len());
+        let mut wave = Wave::zeros(envelope.len());
         wave.add_consuming(
             self.oscillators
                 .play(freq, modulation, note_on, envelope.len()),
@@ -101,7 +128,7 @@ impl<W: Wave> Synthesizer<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for Synthesizer<W> {
+impl FunctionKeeper for Synthesizer {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.effects
             .heal_sources(id_map)
@@ -109,7 +136,7 @@ impl<W: Wave> FunctionKeeper for Synthesizer<W> {
         self.oscillators
             .heal_sources(id_map)
             .map_err(|err| err.push_location("Synthesizer"))?;
-        self.fuctions
+        self.functions
             .borrow_mut()
             .heal_sources(id_map)
             .map_err(|err| err.push_location("Synthesizer"))?;
@@ -127,7 +154,7 @@ impl<W: Wave> FunctionKeeper for Synthesizer<W> {
     fn set_ids(&mut self) {
         self.effects.set_ids();
         self.oscillators.set_ids();
-        self.fuctions.borrow_mut().set_ids();
+        self.functions.borrow_mut().set_ids();
         self.pitch_control.set_ids();
         self.modulation_control.set_ids();
         self.volume_control.set_ids();
@@ -140,7 +167,7 @@ impl<W: Wave> FunctionKeeper for Synthesizer<W> {
         self.oscillators
             .test_sources()
             .map_err(|err| err.push_location("Synthesizer"))?;
-        self.fuctions
+        self.functions
             .borrow()
             .test_sources()
             .map_err(|err| err.push_location("Synthesizer"))?;
@@ -159,7 +186,7 @@ impl<W: Wave> FunctionKeeper for Synthesizer<W> {
         let mut ids = Vec::new();
         ids.append(&mut self.effects.get_ids());
         ids.append(&mut self.oscillators.get_ids());
-        ids.append(&mut self.fuctions.borrow().get_ids());
+        ids.append(&mut self.functions.borrow().get_ids());
         ids.append(&mut self.pitch_control.get_ids());
         ids.append(&mut self.modulation_control.get_ids());
         ids.append(&mut self.volume_control.get_ids());
@@ -167,30 +194,31 @@ impl<W: Wave> FunctionKeeper for Synthesizer<W> {
     }
 }
 
-impl<W: Wave> FunctionOwner for Synthesizer<W> {
+impl FunctionOwner for Synthesizer {
     unsafe fn new_ids(&mut self) {
-        self.fuctions.borrow_mut().new_ids()
+        self.functions.borrow_mut().new_ids()
     }
 
     fn get_id_map(&self) -> IdMapOrErr {
-        self.fuctions.borrow().get_id_map()
+        self.functions.borrow().get_id_map()
     }
 }
 
-impl<W: Wave> FunctionMngrKeeper for Synthesizer<W> {
+impl FunctionMngrKeeper for Synthesizer {
     fn set_fuction_manager(&mut self, function_manager: Rc<RefCell<FunctionManager>>) {
-        self.fuctions
+        self.functions
             .borrow_mut()
             .set_fuction_manager(Rc::clone(&function_manager))
     }
 }
 
-impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
-    fn play_note(&self, note: midi::Note) -> W {
+#[typetag::serde]
+impl MidiInstrument for Synthesizer {
+    fn play_note(&self, note: midi::Note) -> Wave {
         self.play_freq(note.on, note.off, note.pitch.get_freq(), note.velocity)
     }
-    fn play_notes(&self, notes: &[midi::Note]) -> W {
-        let mut wave = W::new();
+    fn play_notes(&self, notes: &[midi::Note]) -> Wave {
+        let mut wave = Wave::new();
         for note in notes {
             let sound = self.play_note(*note);
             wave.add_consuming(sound, self.time_manager.borrow().stamp_to_samples(note.on));
@@ -202,39 +230,39 @@ impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
     }
 }
 
-impl<W: Wave> Synthesizer<W> {
+impl Synthesizer {
     pub fn get_main_envelope(&self) -> Source {
         Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
-            &self.fuctions.borrow().main_envelope,
+            &self.functions.borrow().main_envelope,
         )))
     }
 
     pub fn get_alt_envelope(&self) -> Source {
         Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
-            &self.fuctions.borrow().alt_envelope,
+            &self.functions.borrow().alt_envelope,
         )))
     }
 
     pub fn get_current_velocity(&self) -> Source {
         Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
-            &self.fuctions.borrow().current_velocity,
+            &self.functions.borrow().current_velocity,
         )))
     }
 
     pub fn get_lfo1(&self) -> Source {
         Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
-            &self.fuctions.borrow().lfo1,
+            &self.functions.borrow().lfo1,
         )))
     }
 
     pub fn get_lfo2(&self) -> Source {
         Source::from_function(ctrl_f::make_ctrl_function(Rc::clone(
-            &self.fuctions.borrow().lfo2,
+            &self.functions.borrow().lfo2,
         )))
     }
 
     pub fn get_automation_channel(&self, channel: u8) -> Option<Source> {
-        self.fuctions
+        self.functions
             .borrow()
             .track_functions
             .borrow()
@@ -243,13 +271,13 @@ impl<W: Wave> Synthesizer<W> {
     }
 }
 
-impl<W: Wave> Synthesizer<W> {
+impl Synthesizer {
     pub fn add_osc(&mut self, oscillator: Oscillator) {
         self.oscillators.add_osc(oscillator)
     }
 
     pub fn set_main_envelope(&mut self, envelope: Envelope) -> Result<(), ControlError> {
-        self.fuctions
+        self.functions
             .borrow_mut()
             .main_envelope
             .borrow_mut()
@@ -259,7 +287,7 @@ impl<W: Wave> Synthesizer<W> {
     }
 
     pub fn set_alt_envelope(&mut self, envelope: Envelope) -> Result<(), ControlError> {
-        self.fuctions
+        self.functions
             .borrow_mut()
             .alt_envelope
             .borrow_mut()
@@ -269,7 +297,7 @@ impl<W: Wave> Synthesizer<W> {
     }
 
     pub fn set_lfo1(&mut self, lfo: Lfo) -> Result<(), ControlError> {
-        self.fuctions
+        self.functions
             .borrow_mut()
             .lfo1
             .borrow_mut()
@@ -279,7 +307,7 @@ impl<W: Wave> Synthesizer<W> {
     }
 
     pub fn set_lfo2(&mut self, lfo: Lfo) -> Result<(), ControlError> {
-        self.fuctions
+        self.functions
             .borrow_mut()
             .lfo2
             .borrow_mut()
@@ -295,10 +323,14 @@ impl<W: Wave> Synthesizer<W> {
     pub fn set_pitch_source(&mut self, source: Source) {
         self.volume_control = Control::new(0.0, PITCH_WHEEL_RANGE, source).unwrap()
     }
+
+    pub fn set_effects(&mut self, effects: EffectPanel){
+        self.effects = effects
+    }
 }
 
-impl<W: Wave> Synthesizer<W> {
-    pub fn play_test_chord(&self) -> W {
+impl Synthesizer {
+    pub fn play_test_chord(&self) -> Wave {
         let note_on = self.time_manager.borrow().zero();
         let note_off = self.time_manager.borrow().seconds_to_stamp(6.0);
         let mut wave = self.play_freq(note_on, note_off, 300.0, 0.7);

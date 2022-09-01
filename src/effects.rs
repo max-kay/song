@@ -4,6 +4,8 @@ use crate::{
     time::{TimeKeeper, TimeManager, TimeStamp},
     wave::Wave,
 };
+use dyn_clone::DynClone;
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 pub mod delay;
@@ -12,25 +14,26 @@ pub mod volume;
 
 pub use delay::Delay;
 
-trait EffMarker<W: Wave>: Effect<W> + Default {}
-
-pub trait Effect<W: Wave>: Debug + TimeKeeper + FunctionKeeper {
-    fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
+#[typetag::serde]
+pub trait Effect: Debug + TimeKeeper + FunctionKeeper + DynClone {
+    fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn on(&mut self);
     fn off(&mut self);
     fn toggle(&mut self);
 }
 
-#[derive(Debug)]
-pub enum EffectPanel<W: Wave> {
-    Leaf(Box<dyn Effect<W>>),
-    Node(Vec<EffectPanel<W>>),
+dyn_clone::clone_trait_object!(Effect);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EffectPanel {
+    Leaf(Box<dyn Effect>),
+    Node(Vec<EffectPanel>),
     EmptyLeaf,
 }
 
-impl<W: Wave> EffectPanel<W> {
-    pub fn apply_to(&self, wave: &mut W, time_triggered: TimeStamp) {
+impl EffectPanel {
+    pub fn apply_to(&self, wave: &mut Wave, time_triggered: TimeStamp) {
         match self {
             EffectPanel::Leaf(eff) => eff.apply(wave, time_triggered),
             EffectPanel::Node(nodes) => {
@@ -47,7 +50,7 @@ impl<W: Wave> EffectPanel<W> {
     }
 }
 
-impl<W: Wave> TimeKeeper for EffectPanel<W> {
+impl TimeKeeper for EffectPanel {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         match self {
             EffectPanel::Leaf(eff) => eff.set_time_manager(time_manager),
@@ -61,7 +64,7 @@ impl<W: Wave> TimeKeeper for EffectPanel<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for EffectPanel<W> {
+impl FunctionKeeper for EffectPanel {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         match self {
             EffectPanel::Leaf(eff) => eff

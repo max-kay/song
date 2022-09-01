@@ -1,13 +1,15 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     control::ControlError,
     time::{TimeKeeper, TimeManager, TimeStamp},
-    utils,
+    utils::{self, Interpolation},
 };
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
-use super::{CtrlFunction, IdMap, FunctionKeeper};
+use super::{CtrlFunction, FunctionKeeper, IdMap};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AutomationPoint {
     value: f64,
     time: TimeStamp,
@@ -63,25 +65,11 @@ impl Ord for AutomationPoint {
     }
 }
 
-#[derive(Debug)]
-pub enum Interpolation {
-    Linear,
-    Smooth,
-}
-
-impl Interpolation {
-    pub fn interpolate(&self, val1: f64, val2: f64, progress: f64) -> f64 {
-        match self {
-            Interpolation::Linear => (val2 - val1) * progress + val1,
-            Interpolation::Smooth => (val2 - val1) * utils::smooth_step(progress) + val1,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PointDefined {
     points: Vec<AutomationPoint>,
     interpolation: Interpolation,
+    #[serde(skip)]
     time_manager: Rc<RefCell<TimeManager>>,
     id: usize,
 }
@@ -151,6 +139,7 @@ impl FunctionKeeper for PointDefined {
     }
 }
 
+#[typetag::serde]
 impl CtrlFunction for PointDefined {
     fn get_value(&self, time: TimeStamp) -> f64 {
         let (val1, val2, progress) = self.find_around(time);

@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
-    ctrl_f::{CtrlFunction, IdMap},
+    ctrl_f::{self, CtrlFunction, IdMap},
     time::{TimeKeeper, TimeManager, TimeStamp},
     utils,
 };
@@ -10,9 +12,10 @@ use std::{
     vec,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Source {
     Function {
+        #[serde(skip, default = "ctrl_f::default_ctrl_f")]
         f: Rc<RefCell<dyn CtrlFunction>>,
         func_id: usize,
     },
@@ -25,10 +28,10 @@ pub enum Source {
     Inverted {
         source: Box<Source>,
     },
-    Transformed {
-        func: fn(f64) -> f64,
-        source: Box<Source>,
-    },
+    // Transformed {
+    //     func: fn(f64) -> f64,
+    //     source: Box<Source>,
+    // },
 }
 
 impl Source {
@@ -62,7 +65,7 @@ impl Source {
                 value
             }
             Source::Inverted { source } => -source.get_value(time) + 1.0,
-            Source::Transformed { func, source } => func(source.get_value(time)),
+            // Source::Transformed { func, source } => func(source.get_value(time)),
         }
     }
     pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
@@ -101,11 +104,11 @@ impl Source {
                 .into_iter()
                 .map(|x| -x + 1.0)
                 .collect(),
-            Source::Transformed { func, source } => source
-                .get_vec(start, samples)
-                .into_iter()
-                .map(func)
-                .collect(),
+            // Source::Transformed { func, source } => source
+            //     .get_vec(start, samples)
+            //     .into_iter()
+            //     .map(func)
+            //     .collect(),
         }
     }
 }
@@ -125,7 +128,7 @@ impl TimeKeeper for Source {
                 }
             }
             Source::Inverted { source } => source.set_time_manager(time_manager),
-            Source::Transformed { func: _, source } => source.set_time_manager(time_manager),
+            // Source::Transformed { func: _, source } => source.set_time_manager(time_manager),
         }
     }
 }
@@ -149,7 +152,7 @@ impl FunctionKeeper for Source {
                 ids
             }
             Source::Inverted { source } => source.get_ids(),
-            Source::Transformed { func: _, source } => source.get_ids(),
+            // Source::Transformed { func: _, source } => source.get_ids(),
         }
     }
 
@@ -179,9 +182,9 @@ impl FunctionKeeper for Source {
             Source::Inverted { source } => source
                 .heal_sources(id_map)
                 .map_err(|err| err.push_location("Source::Inverted")),
-            Source::Transformed { func: _, source } => source
-                .heal_sources(id_map)
-                .map_err(|err| err.push_location("Source::Inverted")),
+            // Source::Transformed { func: _, source } => source
+            //     .heal_sources(id_map)
+            //     .map_err(|err| err.push_location("Source::Inverted")),
         }
     }
 
@@ -203,7 +206,7 @@ impl FunctionKeeper for Source {
                 Ok(())
             }
             Source::Inverted { source } => source.test_sources(),
-            Source::Transformed { func: _, source } => source.test_sources(),
+            // Source::Transformed { func: _, source } => source.test_sources(),
         }
     }
 
@@ -221,12 +224,12 @@ impl FunctionKeeper for Source {
                 }
             }
             Source::Inverted { source } => source.set_ids(),
-            Source::Transformed { func: _, source } => source.set_ids(),
+            // Source::Transformed { func: _, source } => source.set_ids(),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Control {
     value: f64,
     range: (f64, f64),

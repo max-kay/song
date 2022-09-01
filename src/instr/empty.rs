@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use super::{midi, MidiInstrument};
 use crate::{
     control::{ControlError, FunctionKeeper},
@@ -5,31 +7,27 @@ use crate::{
     time::{TimeKeeper, TimeManager},
     wave::Wave,
 };
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell,  rc::Rc};
 
-#[derive(Debug)]
-pub struct EmptyInstrument<W: Wave> {
-    phantom: PhantomData<W>,
-}
-impl<W: Wave> EmptyInstrument<W> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmptyInstrument;
+impl EmptyInstrument {
     pub fn new() -> Self {
-        EmptyInstrument {
-            phantom: PhantomData,
-        }
+        EmptyInstrument
     }
 }
 
-impl<W: Wave> Default for EmptyInstrument<W> {
+impl Default for EmptyInstrument {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W: Wave> TimeKeeper for EmptyInstrument<W> {
+impl TimeKeeper for EmptyInstrument {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
 }
 
-impl<W: Wave> FunctionKeeper for EmptyInstrument<W> {
+impl FunctionKeeper for EmptyInstrument {
     fn get_ids(&self) -> Vec<usize> {
         Vec::new()
     }
@@ -45,7 +43,7 @@ impl<W: Wave> FunctionKeeper for EmptyInstrument<W> {
     fn set_ids(&mut self) {}
 }
 
-impl<W: Wave> FunctionOwner for EmptyInstrument<W> {
+impl FunctionOwner for EmptyInstrument {
     unsafe fn new_ids(&mut self) {}
 
     fn get_id_map(&self) -> IdMapOrErr {
@@ -53,16 +51,17 @@ impl<W: Wave> FunctionOwner for EmptyInstrument<W> {
     }
 }
 
-impl<W: Wave> FunctionMngrKeeper for EmptyInstrument<W> {
+impl FunctionMngrKeeper for EmptyInstrument {
     fn set_fuction_manager(&mut self, _function_manager: Rc<RefCell<FunctionManager>>) {}
 }
 
-impl<W: Wave> MidiInstrument<W> for EmptyInstrument<W> {
-    fn play_note(&self, _note: midi::Note) -> W {
-        W::new()
+#[typetag::serde]
+impl MidiInstrument for EmptyInstrument {
+    fn play_note(&self, _note: midi::Note) -> Wave {
+        Wave::new()
     }
-    fn play_notes(&self, _notes: &[midi::Note]) -> W {
-        W::new()
+    fn play_notes(&self, _notes: &[midi::Note]) -> Wave {
+        Wave::new()
     }
     fn name(&self) -> &str {
         "empty"

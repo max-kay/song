@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     consts::SAMPLE_RATE,
     control::{Control, ControlError},
@@ -6,16 +8,17 @@ use crate::{
 };
 use std::{cell::RefCell, f64::consts::TAU, rc::Rc};
 
-use super::{CtrlFunction, IdMap, FunctionKeeper};
+use super::{CtrlFunction, FunctionKeeper, IdMap};
 
 const FREQ_RANGE: (f64, f64) = (0.001, 20.0);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lfo {
     oscillator: Oscillator,
     freq: Control,
     modulation: Control,
     phase_shift: f64,
+    #[serde(skip)]
     time_manager: Rc<RefCell<TimeManager>>,
     id: usize,
 }
@@ -105,6 +108,7 @@ impl FunctionKeeper for Lfo {
     }
 }
 
+#[typetag::serde]
 impl CtrlFunction for Lfo {
     fn get_value(&self, time: TimeStamp) -> f64 {
         let phase =
@@ -139,10 +143,4 @@ impl CtrlFunction for Lfo {
     unsafe fn new_id_f(&mut self) {
         self.id = utils::get_f_id()
     }
-
-    // fn get_sub_ids(&self) -> Vec<usize> {
-    //     let mut ids = self.freq.get_ids();
-    //     ids.append(&mut self.modulation.get_ids());
-    //     ids
-    // }
 }

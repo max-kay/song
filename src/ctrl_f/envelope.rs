@@ -1,4 +1,6 @@
-use super::{CtrlFunction, IdMap, FunctionKeeper};
+use serde::{Deserialize, Serialize};
+
+use super::{CtrlFunction, FunctionKeeper, IdMap};
 use crate::{
     consts::SAMPLE_RATE,
     control::{self, Control, ControlError},
@@ -10,13 +12,14 @@ use std::{cell::RefCell, rc::Rc};
 const TIME_RANGE: (f64, f64) = (0.0, 25.0);
 const HALF_LIFE_RANGE: (f64, f64) = (0.01, 10.0);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Envelope {
     attack: Control,
     decay: Control,
     sustain: Control,
     half_life: Option<Control>,
     release: Control,
+    #[serde(skip)]
     time_manager: Rc<RefCell<TimeManager>>,
     id: usize,
 }
@@ -246,6 +249,7 @@ impl FunctionKeeper for Envelope {
     }
 }
 
+#[typetag::serde]
 impl CtrlFunction for Envelope {
     fn get_value(&self, _time: TimeStamp) -> f64 {
         panic!("an Envelope cannot be bound to a reciever which requries getting a value")

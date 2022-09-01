@@ -7,20 +7,51 @@ use crate::{
     },
     time::{TimeKeeper, TimeManager},
 };
+use serde::{
+    de::{Deserialize, Deserializer},
+    ser::{Serialize, SerializeStruct, Serializer},
+};
 use std::{cell::RefCell, collections::HashMap, rc::Rc, result::Result};
 
-#[derive(Debug)]
-pub struct LocalFManager {
-    pub(crate) main_envelope: Rc<RefCell<Envelope>>,
-    pub(crate) alt_envelope: Rc<RefCell<Envelope>>,
-    pub(crate) current_velocity: Rc<RefCell<Constant>>,
-    pub(crate) lfo1: Rc<RefCell<Lfo>>,
-    pub(crate) lfo2: Rc<RefCell<Lfo>>,
-    pub(crate) track_functions: Rc<RefCell<FunctionManager>>,
-    pub(crate) time_manager: Rc<RefCell<TimeManager>>,
+#[derive(Debug, Clone)]
+pub struct LocalFManager<'tm> {
+    pub(crate) main_envelope: Envelope,
+    pub(crate) alt_envelope: Envelope,
+    pub(crate) current_velocity: Constant,
+    pub(crate) lfo1: Lfo,
+    pub(crate) lfo2: Lfo,
+    pub(crate) track_functions: FunctionManager,
+    pub(crate) time_manager: &'tm TimeManager,
 }
 
-impl LocalFManager {
+
+// impl<'de, 'tm> Deserialize<'de> for LocalFManager<'tm> {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         todo!()
+//     }
+// }
+
+// impl<'de, 'tm> Serialize for LocalFManager<'tm> {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         let mut state = serializer.serialize_struct("LocalFManager", 7)?;
+//         state.serialize_field("main_envelope", &self.main_envelope.borrow().clone())?;
+//         state.serialize_field("alt_envelope", &self.alt_envelope.borrow().clone())?;
+//         state.skip_field("current_velocity")?;
+//         state.serialize_field("lfo1", &self.lfo1.borrow().clone())?;
+//         state.serialize_field("lfo2", &self.lfo2.borrow().clone())?;
+//         state.skip_field("track_functions")?;
+//         state.skip_field("time_manager")?;
+//         state.end()
+//     }
+// }
+
+impl<'tm> LocalFManager<'tm> {
     pub fn new() -> Self {
         Self {
             main_envelope: Rc::new(RefCell::new(Envelope::default())),
@@ -34,19 +65,19 @@ impl LocalFManager {
     }
 }
 
-impl Default for LocalFManager {
+impl<'tm> Default for LocalFManager<'tm> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl LocalFManager {
+impl<'tm> LocalFManager<'tm> {
     pub fn set_velocity(&mut self, velocity: f64) {
         self.current_velocity.borrow_mut().set(velocity)
     }
 }
 
-impl TimeKeeper for LocalFManager {
+impl<'tm> TimeKeeper for LocalFManager<'tm> {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager);
         self.lfo1
@@ -163,7 +194,7 @@ impl FunctionOwner for LocalFManager {
     }
 }
 
-impl FunctionMngrKeeper for LocalFManager {
+impl<'tm, 'fm> FunctionMngrKeeper for LocalFManager<'tm, 'fm> {
     fn set_fuction_manager(&mut self, function_manager: Rc<RefCell<FunctionManager>>) {
         self.track_functions = Rc::clone(&function_manager)
     }

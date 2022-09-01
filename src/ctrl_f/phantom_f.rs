@@ -1,5 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     control::{ControlError, FunctionKeeper},
     time::{TimeKeeper, TimeManager, TimeStamp},
@@ -7,8 +9,8 @@ use crate::{
 
 use super::{CtrlFunction, IdMap};
 
-#[derive(Debug)]
-pub struct PhantomF();
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhantomF;
 
 impl TimeKeeper for PhantomF {
     fn set_time_manager(&mut self, _time_manager: Rc<RefCell<TimeManager>>) {}
@@ -36,6 +38,7 @@ impl FunctionKeeper for PhantomF {
     }
 }
 
+#[typetag::serde]
 impl CtrlFunction for PhantomF {
     fn get_value(&self, _time: TimeStamp) -> f64 {
         panic!(

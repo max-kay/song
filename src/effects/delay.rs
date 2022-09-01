@@ -1,4 +1,6 @@
-use super::{Control, EffMarker, Effect};
+use serde::{Deserialize, Serialize};
+
+use super::{Control, Effect};
 use crate::{
     control::{ControlError, FunctionKeeper},
     ctrl_f::IdMap,
@@ -6,25 +8,24 @@ use crate::{
     utils,
     wave::Wave,
 };
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 const SMALLEST_GAIN_ALLOWED: f64 = 0.05;
 const GAIN_RANGE: (f64, f64) = (0.0, 0.95);
 const DELTA_T_RANGE: (f64, f64) = (0.001, 6.0);
 
-#[derive(Debug)]
-pub struct Delay<W: Wave> {
-    phantom: PhantomData<W>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Delay {
+    #[serde(skip)]
     time_manager: Rc<RefCell<TimeManager>>,
     on: bool,
     gain: Control,
     delta_t: Control,
 }
 
-impl<W: Wave> Delay<W> {
+impl Delay {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
             on: true,
             gain: Control::from_val_in_range(0.6, GAIN_RANGE).unwrap(),
@@ -33,13 +34,13 @@ impl<W: Wave> Delay<W> {
     }
 }
 
-impl<W: Wave> Default for Delay<W> {
+impl Default for Delay {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W: Wave> TimeKeeper for Delay<W> {
+impl TimeKeeper for Delay {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.time_manager = Rc::clone(&time_manager);
         self.gain.set_time_manager(Rc::clone(&time_manager));
@@ -47,7 +48,7 @@ impl<W: Wave> TimeKeeper for Delay<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for Delay<W> {
+impl FunctionKeeper for Delay {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.delta_t
             .heal_sources(id_map)
@@ -78,8 +79,9 @@ impl<W: Wave> FunctionKeeper for Delay<W> {
     }
 }
 
-impl<W: Wave> Effect<W> for Delay<W> {
-    fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
+#[typetag::serde]
+impl Effect for Delay {
+    fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp) {
         let mut source = wave.clone();
         let mut current_time = time_triggered;
         let mut gain: f64 = self.gain.get_value(time_triggered);
@@ -113,5 +115,3 @@ impl<W: Wave> Effect<W> for Delay<W> {
         self.on = !self.on
     }
 }
-
-impl<W: Wave> EffMarker<W> for Delay<W> {}

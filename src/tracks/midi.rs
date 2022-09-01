@@ -1,3 +1,8 @@
+use serde::{
+    de::{Deserialize, Deserializer},
+    ser::{Serialize, SerializeStruct},
+};
+
 use crate::{
     control::{ControlError, FunctionKeeper},
     ctrl_f::{FunctionManager, FunctionOwner, IdMap, IdMapOrErr},
@@ -9,7 +14,7 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Pitch {
     value: u8,
 }
@@ -35,7 +40,7 @@ impl Pitch {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Note {
     pub pitch: Pitch,
     pub on: time::TimeStamp,
@@ -44,17 +49,43 @@ pub struct Note {
 }
 
 #[derive(Debug)]
-pub struct MidiTrack<W: Wave> {
+pub struct MidiTrack {
     name: String,
-    instrument: Box<dyn MidiInstrument<W>>,
+    instrument: Box<dyn MidiInstrument>,
     gain: f64,
-    effects: EffectPanel<W>,
+    effects: EffectPanel,
     notes: Vec<Note>,
     function_manager: Rc<RefCell<FunctionManager>>,
     time_manager: Rc<RefCell<TimeManager>>,
 }
 
-impl<W: Wave> TimeKeeper for MidiTrack<W> {
+impl Serialize for MidiTrack {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("LocalFManager", 7)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("instrument", &*self.instrument)?;
+        state.serialize_field("gain", &self.gain)?;
+        state.serialize_field("effects", &self.effects)?;
+        state.serialize_field("notes", &self.notes)?;
+        state.serialize_field("function_manager", &self.function_manager.borrow().clone())?;
+        state.serialize_field("time_manager", &self.time_manager.borrow().clone())?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for MidiTrack {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+
+impl TimeKeeper for MidiTrack {
     fn set_time_manager(&mut self, time_manager: Rc<RefCell<TimeManager>>) {
         self.instrument.set_time_manager(Rc::clone(&time_manager));
         self.effects.set_time_manager(Rc::clone(&time_manager));
@@ -65,18 +96,18 @@ impl<W: Wave> TimeKeeper for MidiTrack<W> {
     }
 }
 
-impl<W: Wave> MidiTrack<W> {
+impl MidiTrack {
     pub fn set_function_manager(&mut self) {
         self.instrument
             .set_fuction_manager(Rc::clone(&self.function_manager));
     }
 }
 
-impl<W: Wave + 'static> MidiTrack<W> {
+impl MidiTrack {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            instrument: Box::new(EmptyInstrument::<W>::new()),
+            instrument: Box::new(EmptyInstrument::new()),
             gain: 1.0,
             effects: EffectPanel::EmptyLeaf,
             function_manager: Rc::new(RefCell::new(FunctionManager::new())),
@@ -84,7 +115,7 @@ impl<W: Wave + 'static> MidiTrack<W> {
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
         }
     }
-    pub fn play(&self) -> W {
+    pub fn play(&self) -> Wave {
         let mut wave = self.instrument.play_notes(&self.notes);
         self.effects
             .apply_to(&mut wave, self.time_manager.borrow().zero());
@@ -92,13 +123,13 @@ impl<W: Wave + 'static> MidiTrack<W> {
         wave
     }
 
-    pub fn from_instrument(instrument: Box<dyn MidiInstrument<W>>) -> Self {
+    pub fn from_instrument(instrument: Box<dyn MidiInstrument>) -> Self {
         let function_manager = Rc::new(RefCell::new(FunctionManager::new()));
         Self {
             name: String::from(instrument.name()),
             instrument,
             gain: 1.0,
-            effects: EffectPanel::<W>::EmptyLeaf,
+            effects: EffectPanel::EmptyLeaf,
             function_manager,
             notes: Vec::new(),
             time_manager: Rc::new(RefCell::new(TimeManager::default())),
@@ -106,13 +137,13 @@ impl<W: Wave + 'static> MidiTrack<W> {
     }
 }
 
-impl<W: Wave> MidiTrack<W> {
+impl MidiTrack {
     pub fn get_name(&self) -> String {
         self.name.clone()
     }
 }
 
-impl<W: Wave> FunctionOwner for MidiTrack<W> {
+impl FunctionOwner for MidiTrack {
     unsafe fn new_ids(&mut self) {
         self.instrument.new_ids();
         self.function_manager.borrow_mut().new_ids();
@@ -125,7 +156,7 @@ impl<W: Wave> FunctionOwner for MidiTrack<W> {
     }
 }
 
-impl<W: Wave> FunctionKeeper for MidiTrack<W> {
+impl FunctionKeeper for MidiTrack {
     fn heal_sources(&mut self, id_map: &IdMap) -> Result<(), ControlError> {
         self.instrument
             .heal_sources(id_map)
@@ -164,7 +195,7 @@ impl<W: Wave> FunctionKeeper for MidiTrack<W> {
     }
 }
 
-impl<W: 'static + Wave> Default for MidiTrack<W> {
+impl Default for MidiTrack {
     fn default() -> Self {
         Self::new()
     }

@@ -1,8 +1,10 @@
 use std::{
-    io,
     ops::{AddAssign, MulAssign},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering}, cell::{RefCell, Ref}, rc::Rc,
 };
+
+use dyn_clone::DynClone;
+use serde::{Deserialize, Serialize};
 
 use crate::{consts::SAMPLE_RATE, control::ControlError, ctrl_f::IdMap};
 
@@ -47,6 +49,10 @@ pub fn mul_elementwise<T: MulAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
     }
 }
 
+pub(crate) fn clone_borrow<T: Clone>(cell: Rc<RefCell<T>>) -> T{
+    cell.borrow().clone()
+}
+
 // pub fn overlap<T: PartialEq + Copy>(v1: &[T], v2: &[T]) -> Option<Vec<T>> {
 //     // TODO remove need for copying (inefficient)
 //     let out: Vec<T> = v1
@@ -84,15 +90,19 @@ pub fn max_abs_f64(vec: &[f64]) -> f64 {
     f64::max(f64::abs(max), f64::abs(min))
 }
 
-pub fn user_input(prompt: &str) -> String {
-    println!("{}", prompt);
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub enum Interpolation {
+    Linear,
+    Smooth,
+}
 
-    let mut input = String::new();
-    match io::stdin().read_line(&mut input) {
-        Ok(_) => {}
-        Err(error) => println!("{}", error),
-    };
-    input
+impl Interpolation {
+    pub fn interpolate(&self, val1: f64, val2: f64, progress: f64) -> f64 {
+        match self {
+            Interpolation::Linear => (val2 - val1) * progress + val1,
+            Interpolation::Smooth => (val2 - val1) * smooth_step(progress) + val1,
+        }
+    }
 }
 
 #[cfg(test)]
