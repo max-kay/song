@@ -8,6 +8,7 @@ pub mod effects;
 pub mod globals;
 pub mod instr;
 pub mod io;
+pub mod network;
 pub mod time;
 pub mod tracks;
 pub mod utils;

@@ -5,7 +5,6 @@ use crate::{
     time::{self},
     wave::Wave,
 };
-use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Pitch {
@@ -85,7 +84,6 @@ impl<W: Wave> MidiTrack<W> {
         self.name.clone()
     }
 }
-
 
 impl<W: 'static + Wave> Default for MidiTrack<W> {
     fn default() -> Self {

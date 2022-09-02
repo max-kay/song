@@ -1,13 +1,11 @@
-use std::{sync::Mutex, collections::HashMap, cell::RefCell};
+use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
 
-use crate::{time::TimeManager, ctrl_f::{CtrlFunction, Envelope, FunctionManager},};
+use crate::{ctrl_f::GeneratorManager, time::TimeManager};
 
 pub const SAMPLE_RATE: usize = 44100;
 
 pub static TIME_MANAGER: Lazy<Mutex<TimeManager>> = Lazy::new(Mutex::default);
 
-
-static FUNCTION_MANAGER: Lazy<Mutex<FunctionManager>> = Lazy::new(Mutex::default);
-
+pub static FUNCTION_MANAGER: Lazy<Mutex<GeneratorManager>> = Lazy::new(Mutex::default);

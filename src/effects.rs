@@ -1,8 +1,4 @@
-use crate::{
-    ctrl_f::{Control, ControlError},
-    time::TimeStamp,
-    wave::Wave,
-};
+use crate::{time::TimeStamp, wave::Wave};
 use std::fmt::Debug;
 
 pub mod delay;

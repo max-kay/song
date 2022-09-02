@@ -1,6 +1,4 @@
-use crate::{
-    wave::Wave,
-};
+use crate::wave::Wave;
 
 pub mod midi;
 

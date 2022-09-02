@@ -1,7 +1,5 @@
-use crate::{ctrl_f::ControlError, globals::TIME_MANAGER, time::TimeStamp, utils};
+use crate::{globals::TIME_MANAGER, time::TimeStamp, utils};
 use std::cmp::Ordering;
-
-use super::CtrlFunction;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
@@ -17,7 +15,7 @@ impl AutomationPoint {
         );
         Self { value, time }
     }
-    pub fn get_value(&self) -> f64 {
+    pub fn get_val(&self) -> f64 {
         self.value
     }
     pub fn get_time(&self) -> TimeStamp {
@@ -100,8 +98,8 @@ impl PointDefined {
                 break;
             }
         }
-        let val1 = p1.get_value();
-        let val2 = p2.get_value();
+        let val1 = p1.get_val();
+        let val2 = p2.get_val();
         let tot_secs = TIME_MANAGER
             .lock()
             .unwrap()
@@ -121,17 +119,17 @@ impl PointDefined {
     }
 }
 
-impl CtrlFunction for PointDefined {
-    fn get_value(&self, time: TimeStamp) -> f64 {
+impl PointDefined {
+    pub fn get_val(&self, time: TimeStamp) -> f64 {
         let (val1, val2, progress) = self.find_around(time);
         self.interpolation.interpolate(val1, val2, progress)
     }
 
-    fn get_vec(&self, onset: TimeStamp, samples: usize) -> Vec<f64> {
+    pub fn get_vec(&self, onset: TimeStamp, samples: usize) -> Vec<f64> {
         let time_stamps = TIME_MANAGER.lock().unwrap().get_stamp_vec(onset, samples);
         let mut out = Vec::with_capacity(samples);
         for t in time_stamps {
-            out.push(self.get_value(t))
+            out.push(self.get_val(t))
         }
         out
     }

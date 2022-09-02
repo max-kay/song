@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{ tracks::midi, wave::Wave};
+use crate::{tracks::midi, wave::Wave};
 pub mod empty;
 pub mod synth;
 

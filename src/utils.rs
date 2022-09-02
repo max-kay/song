@@ -1,10 +1,9 @@
 use std::{
     io,
     ops::{AddAssign, MulAssign},
-    sync::atomic::{AtomicUsize, Ordering},
 };
 
-use crate::{ctrl_f::ControlError, globals::SAMPLE_RATE};
+use crate::globals::SAMPLE_RATE;
 
 pub mod oscs;
 
@@ -46,20 +45,6 @@ pub fn mul_elementwise<T: MulAssign>(v1: &mut Vec<T>, v2: Vec<T>) {
         *x1 *= x2
     }
 }
-
-// pub fn overlap<T: PartialEq + Copy>(v1: &[T], v2: &[T]) -> Option<Vec<T>> {
-//     // TODO remove need for copying (inefficient)
-//     let out: Vec<T> = v1
-//         .iter()
-//         .filter(|item| v2.contains(item))
-//         .copied()
-//         .collect();
-//     if out.is_empty() {
-//         None
-//     } else {
-//         Some(out)
-//     }
-// }
 
 pub fn max_abs_f64(vec: &[f64]) -> f64 {
     let max = vec

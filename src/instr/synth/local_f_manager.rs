@@ -1,11 +1,10 @@
-use crate::time::{TimeManager, TimeStamp};
-
+use crate::time::TimeStamp;
 
 #[derive(Debug)]
 pub struct LocalFManager {}
 
 impl LocalFManager {
-    pub fn new() -> Self{
+    pub fn new() -> Self {
         todo!()
     }
     pub fn set_velocity(&self, vel: f64) {

@@ -1,9 +1,6 @@
 use super::{midi, MidiInstrument};
-use crate::{
-    ctrl_f::{ControlError},
-    wave::Wave,
-};
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use crate::wave::Wave;
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct EmptyInstrument<W: Wave> {

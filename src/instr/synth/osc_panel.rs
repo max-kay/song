@@ -1,19 +1,27 @@
-use super::PITCH_WHEEL_RANGE;
+use once_cell::sync::Lazy;
+
 use crate::{
-    ctrl_f::{Control, ControlError},
+    network::{Reciever, Transform},
     time::TimeStamp,
     utils,
     utils::oscs::Oscillator,
     wave::Wave,
 };
-use std::{marker::PhantomData, result::Result};
+use std::marker::PhantomData;
+
+use super::PITCH_RECIEVER;
+
+static WEIGHT_RECIEVER: Lazy<Reciever> =
+    Lazy::new(|| Reciever::new(1.0, (0.0, 5.0), Transform::Linear));
+static PITCH_OFFSET_RECIEVER: Lazy<Reciever> =
+    Lazy::new(|| Reciever::new(0.0, (-4800.0, 4800.0), Transform::Linear));
 
 #[derive(Debug)]
 pub struct OscPanel<W: Wave> {
     phantom: PhantomData<W>,
     oscillators: Vec<Oscillator>,
-    weights: Vec<Control>,
-    pitch_offsets: Vec<Control>,
+    weights: Vec<Reciever>,
+    pitch_offsets: Vec<Reciever>,
 }
 
 impl<W: Wave> Default for OscPanel<W> {
@@ -21,8 +29,8 @@ impl<W: Wave> Default for OscPanel<W> {
         Self {
             phantom: PhantomData::<W>,
             oscillators: vec![Oscillator::default()],
-            weights: vec![Control::from_val_in_unit(1.0).unwrap()],
-            pitch_offsets: vec![Control::from_val_in_range(0.0, (-4800.0, 4800.0)).unwrap()],
+            weights: vec![WEIGHT_RECIEVER.clone()],
+            pitch_offsets: vec![PITCH_OFFSET_RECIEVER.clone()],
         }
     }
 }
@@ -64,8 +72,7 @@ impl<W: Wave> OscPanel<W> {
 
     pub fn add_osc(&mut self, oscillator: Oscillator) {
         self.oscillators.push(oscillator);
-        self.pitch_offsets
-            .push(Control::from_val_in_range(0.0, PITCH_WHEEL_RANGE).unwrap());
-        self.weights.push(Control::from_val_in_unit(1.0).unwrap());
+        self.pitch_offsets.push(PITCH_RECIEVER.clone());
+        self.weights.push(WEIGHT_RECIEVER.clone());
     }
 }

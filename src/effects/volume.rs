@@ -1,19 +1,22 @@
 use std::marker::PhantomData;
 
+use once_cell::sync::Lazy;
+
 use crate::{
-    ctrl_f::{Control, ControlError},
+    network::{Reciever, Transform},
     time::TimeStamp,
     wave::Wave,
 };
 
 use super::{EffMarker, Effect};
 
-const VOL_RANGE: (f64, f64) = (0.0, 5.0);
+static VOL_RECIEVER: Lazy<Reciever> =
+    Lazy::new(|| Reciever::new(1.0, (0.0, 5.0), Transform::Linear));
 
 #[derive(Debug)]
 pub struct Volume<W> {
     phantom: PhantomData<W>,
-    volume: Control,
+    volume: Reciever,
     on: bool,
 }
 
@@ -21,7 +24,7 @@ impl<W: Wave> Volume<W> {
     pub fn new() -> Self {
         Self {
             phantom: PhantomData,
-            volume: Control::from_val_in_range(1.0, VOL_RANGE).unwrap(),
+            volume: VOL_RECIEVER.clone(),
             on: true,
         }
     }
@@ -33,7 +36,6 @@ impl<W: Wave> Default for Volume<W> {
     }
 }
 
-
 impl<W: Wave> Effect<W> for Volume<W> {
     fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
         if self.on {
@@ -43,7 +45,7 @@ impl<W: Wave> Effect<W> for Volume<W> {
     }
 
     fn set_defaults(&mut self) {
-        self.volume.set_value(1.0).unwrap()
+        self.volume = VOL_RECIEVER.clone()
     }
 
     fn on(&mut self) {
