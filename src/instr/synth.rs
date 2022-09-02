@@ -16,30 +16,30 @@ static MOD_RECIEVER: Lazy<Reciever> =
 static VOL_CTRL_RECIEVER: Lazy<Reciever> =
     Lazy::new(|| Reciever::new(1.0, (0.0, 5.0), Transform::Linear));
 
-pub mod local_f_manager;
+pub mod local_g_manager;
 pub mod osc_panel;
 
-pub use local_f_manager::LocalFManager;
+pub use local_g_manager::LocalGManager;
 use once_cell::sync::Lazy;
 pub use osc_panel::OscPanel;
 
 #[derive(Debug)]
-pub struct Synthesizer<W: Wave> {
+pub struct Synthesizer {
     name: String,
-    effects: EffectPanel<W>,
-    oscillators: OscPanel<W>,
-    fuctions: LocalFManager,
+    effects: EffectPanel,
+    oscillators: OscPanel,
+    fuctions: LocalGManager,
     pitch_reciever: Reciever,
     modulation_reciever: Reciever,
     volume_control: Reciever,
 }
 
-impl<W: Wave> Synthesizer<W> {
+impl Synthesizer {
     pub fn new(name: String) -> Self {
         Self {
             name,
             effects: EffectPanel::EmptyLeaf,
-            fuctions: LocalFManager::new(),
+            fuctions: LocalGManager::new(),
             pitch_reciever: PITCH_RECIEVER.clone(),
             modulation_reciever: MOD_RECIEVER.clone(),
             volume_control: VOL_CTRL_RECIEVER.clone(),
@@ -48,8 +48,8 @@ impl<W: Wave> Synthesizer<W> {
     }
 }
 
-impl<W: Wave> Synthesizer<W> {
-    fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> W {
+impl Synthesizer {
+    fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> Wave {
         self.fuctions.set_velocity(velocity);
         let sus_samples = TIME_MANAGER
             .lock()
@@ -66,7 +66,7 @@ impl<W: Wave> Synthesizer<W> {
             .collect();
 
         let modulation = self.modulation_reciever.get_vec(note_on, envelope.len());
-        let mut wave = W::zeros(envelope.len());
+        let mut wave = Wave::zeros(envelope.len());
         wave.add_consuming(
             self.oscillators
                 .play(freq, modulation, note_on, envelope.len()),
@@ -79,12 +79,12 @@ impl<W: Wave> Synthesizer<W> {
     }
 }
 
-impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
-    fn play_note(&self, note: midi::Note) -> W {
+impl MidiInstrument for Synthesizer {
+    fn play_note(&self, note: midi::Note) -> Wave {
         self.play_freq(note.on, note.off, note.pitch.get_freq(), note.velocity)
     }
-    fn play_notes(&self, notes: &[midi::Note]) -> W {
-        let mut wave = W::new();
+    fn play_notes(&self, notes: &[midi::Note]) -> Wave {
+        let mut wave = Wave::new();
         for note in notes {
             let sound = self.play_note(*note);
             wave.add_consuming(
@@ -99,8 +99,8 @@ impl<W: Wave> MidiInstrument<W> for Synthesizer<W> {
     }
 }
 
-impl<W: Wave> Synthesizer<W> {
-    pub fn play_test_chord(&self) -> W {
+impl Synthesizer {
+    pub fn play_test_chord(&self) -> Wave {
         let note_on = TIME_MANAGER.lock().unwrap().zero();
         let note_off = TIME_MANAGER.lock().unwrap().seconds_to_stamp(6.0);
         let mut wave = self.play_freq(note_on, note_off, 300.0, 0.7);

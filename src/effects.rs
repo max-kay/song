@@ -7,10 +7,10 @@ pub mod volume;
 
 pub use delay::Delay;
 
-trait EffMarker<W: Wave>: Effect<W> + Default {}
+trait EffMarker: Effect + Default {}
 
-pub trait Effect<W: Wave>: Debug {
-    fn apply(&self, wave: &mut W, time_triggered: TimeStamp);
+pub trait Effect: Debug {
+    fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn on(&mut self);
     fn off(&mut self);
@@ -18,14 +18,14 @@ pub trait Effect<W: Wave>: Debug {
 }
 
 #[derive(Debug)]
-pub enum EffectPanel<W: Wave> {
-    Leaf(Box<dyn Effect<W>>),
-    Node(Vec<EffectPanel<W>>),
+pub enum EffectPanel {
+    Leaf(Box<dyn Effect>),
+    Node(Vec<EffectPanel>),
     EmptyLeaf,
 }
 
-impl<W: Wave> EffectPanel<W> {
-    pub fn apply_to(&self, wave: &mut W, time_triggered: TimeStamp) {
+impl EffectPanel {
+    pub fn apply_to(&self, wave: &mut Wave, time_triggered: TimeStamp) {
         match self {
             EffectPanel::Leaf(eff) => eff.apply(wave, time_triggered),
             EffectPanel::Node(nodes) => {

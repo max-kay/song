@@ -1,31 +1,26 @@
 use super::{midi, MidiInstrument};
 use crate::wave::Wave;
-use std::marker::PhantomData;
 
 #[derive(Debug)]
-pub struct EmptyInstrument<W: Wave> {
-    phantom: PhantomData<W>,
-}
-impl<W: Wave> EmptyInstrument<W> {
+pub struct EmptyInstrument;
+impl EmptyInstrument {
     pub fn new() -> Self {
-        EmptyInstrument {
-            phantom: PhantomData,
-        }
+        EmptyInstrument
     }
 }
 
-impl<W: Wave> Default for EmptyInstrument<W> {
+impl Default for EmptyInstrument {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W: Wave> MidiInstrument<W> for EmptyInstrument<W> {
-    fn play_note(&self, _note: midi::Note) -> W {
-        W::new()
+impl MidiInstrument for EmptyInstrument {
+    fn play_note(&self, _note: midi::Note) -> Wave {
+        Wave::new()
     }
-    fn play_notes(&self, _notes: &[midi::Note]) -> W {
-        W::new()
+    fn play_notes(&self, _notes: &[midi::Note]) -> Wave {
+        Wave::new()
     }
     fn name(&self) -> &str {
         "empty"

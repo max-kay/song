@@ -15,12 +15,12 @@ pub mod utils;
 pub mod wave;
 
 #[derive(Debug)]
-pub struct Song<W: Wave> {
+pub struct Song {
     name: String,
-    tracks: Vec<Track<W>>,
+    tracks: Vec<Track>,
 }
 
-impl<W: 'static + Wave> Song<W> {
+impl Song {
     pub fn get_name(&self) -> &str {
         &self.name
     }
@@ -31,12 +31,12 @@ impl<W: 'static + Wave> Song<W> {
         }
     }
 
-    pub fn add_midi_track(&mut self, track: tracks::MidiTrack<W>) {
+    pub fn add_midi_track(&mut self, track: tracks::MidiTrack) {
         self.tracks.push(Track::Midi(track))
     }
 
-    pub fn get_wave(&self) -> W {
-        let mut wave = W::new();
+    pub fn get_wave(&self) -> Wave {
+        let mut wave = Wave::new();
         for track in &self.tracks {
             wave.add_consuming(track.play(), 0);
         }

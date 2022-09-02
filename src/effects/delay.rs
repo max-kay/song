@@ -8,7 +8,6 @@ use crate::{
     utils,
     wave::Wave,
 };
-use std::marker::PhantomData;
 
 const SMALLEST_GAIN_ALLOWED: f64 = 0.05;
 static GAIN_RECIEVER: Lazy<Reciever> =
@@ -17,17 +16,15 @@ static DELTA_T_RECIEVER: Lazy<Reciever> =
     Lazy::new(|| Reciever::new(0.6, (0.001, 6.0), Transform::Linear));
 
 #[derive(Debug)]
-pub struct Delay<W: Wave> {
-    phantom: PhantomData<W>,
+pub struct Delay {
     on: bool,
     gain: Reciever,
     delta_t: Reciever,
 }
 
-impl<W: Wave> Delay<W> {
+impl Delay {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
             on: true,
             gain: GAIN_RECIEVER.clone(),
             delta_t: DELTA_T_RECIEVER.clone(),
@@ -35,14 +32,14 @@ impl<W: Wave> Delay<W> {
     }
 }
 
-impl<W: Wave> Default for Delay<W> {
+impl Default for Delay {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W: Wave> Effect<W> for Delay<W> {
-    fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
+impl Effect for Delay {
+    fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp) {
         let mut source = wave.clone();
         let mut current_time = time_triggered;
         let mut gain: f64 = self.gain.get_val(time_triggered);
@@ -77,4 +74,4 @@ impl<W: Wave> Effect<W> for Delay<W> {
     }
 }
 
-impl<W: Wave> EffMarker<W> for Delay<W> {}
+impl EffMarker for Delay {}

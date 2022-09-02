@@ -1,13 +1,13 @@
 use crate::wave::Wave;
 use std::path::Path;
 
-pub fn save_wave<W: Wave>(wave: W, path: &Path) {
+pub fn save_wave(wave: Wave, path: &Path) {
     wave.save(path)
 }
 
 // pub fn read_midi_file<W: 'static + wave::Wave>(
 //     path: &Path,
-// ) -> Result<crate::Song<W>, Box<dyn Error>> {
+// ) -> Result<crate::Song , Box<dyn Error>> {
 //     let bytes = std::fs::read(path)?;
 //     let name = utils::user_input("What's the name of the song?");
 //     let mut song = crate::Song::new(name);
@@ -22,7 +22,7 @@ pub fn save_wave<W: Wave>(wave: W, path: &Path) {
 //     let tracks = smf.tracks;
 
 //     for track in tracks {
-//         song.add_midi_track(parse_midi_track::<W>(track, Rc::clone(&time_manager)));
+//         song.add_midi_track(parse_midi_track:: (track, Rc::clone(&time_manager)));
 //     }
 
 //     Ok(song)

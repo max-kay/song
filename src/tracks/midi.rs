@@ -41,26 +41,26 @@ pub struct Note {
 }
 
 #[derive(Debug)]
-pub struct MidiTrack<W: Wave> {
+pub struct MidiTrack {
     name: String,
-    instrument: Box<dyn MidiInstrument<W>>,
+    instrument: Box<dyn MidiInstrument>,
     gain: f64,
-    effects: EffectPanel<W>,
+    effects: EffectPanel,
     notes: Vec<Note>,
 }
 
-impl<W: Wave + 'static> MidiTrack<W> {
+impl MidiTrack {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            instrument: Box::new(EmptyInstrument::<W>::new()),
+            instrument: Box::new(EmptyInstrument::new()),
             gain: 1.0,
             effects: EffectPanel::EmptyLeaf,
             notes: Vec::new(),
         }
     }
 
-    pub fn play(&self) -> W {
+    pub fn play(&self) -> Wave {
         let mut wave = self.instrument.play_notes(&self.notes);
         self.effects
             .apply_to(&mut wave, TIME_MANAGER.lock().unwrap().zero());
@@ -68,24 +68,24 @@ impl<W: Wave + 'static> MidiTrack<W> {
         wave
     }
 
-    pub fn from_instrument(instrument: Box<dyn MidiInstrument<W>>) -> Self {
+    pub fn from_instrument(instrument: Box<dyn MidiInstrument>) -> Self {
         Self {
             name: String::from(instrument.name()),
             instrument,
             gain: 1.0,
-            effects: EffectPanel::<W>::EmptyLeaf,
+            effects: EffectPanel::EmptyLeaf,
             notes: Vec::new(),
         }
     }
 }
 
-impl<W: Wave> MidiTrack<W> {
+impl MidiTrack {
     pub fn get_name(&self) -> String {
         self.name.clone()
     }
 }
 
-impl<W: 'static + Wave> Default for MidiTrack<W> {
+impl Default for MidiTrack {
     fn default() -> Self {
         Self::new()
     }

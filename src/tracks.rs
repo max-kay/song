@@ -5,12 +5,12 @@ pub mod midi;
 pub use midi::MidiTrack;
 
 #[derive(Debug)]
-pub enum Track<W: Wave> {
-    Midi(midi::MidiTrack<W>),
+pub enum Track {
+    Midi(midi::MidiTrack),
 }
 
-impl<W: Wave + 'static> Track<W> {
-    pub fn play(&self) -> W {
+impl Track {
+    pub fn play(&self) -> Wave {
         match self {
             Track::Midi(track) => track.play(),
         }

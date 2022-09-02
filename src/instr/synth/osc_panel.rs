@@ -7,7 +7,7 @@ use crate::{
     utils::oscs::Oscillator,
     wave::Wave,
 };
-use std::marker::PhantomData;
+
 
 use super::PITCH_RECIEVER;
 
@@ -17,17 +17,16 @@ static PITCH_OFFSET_RECIEVER: Lazy<Reciever> =
     Lazy::new(|| Reciever::new(0.0, (-4800.0, 4800.0), Transform::Linear));
 
 #[derive(Debug)]
-pub struct OscPanel<W: Wave> {
-    phantom: PhantomData<W>,
+pub struct OscPanel {
+
     oscillators: Vec<Oscillator>,
     weights: Vec<Reciever>,
     pitch_offsets: Vec<Reciever>,
 }
 
-impl<W: Wave> Default for OscPanel<W> {
+impl Default for OscPanel  {
     fn default() -> Self {
         Self {
-            phantom: PhantomData::<W>,
             oscillators: vec![Oscillator::default()],
             weights: vec![WEIGHT_RECIEVER.clone()],
             pitch_offsets: vec![PITCH_OFFSET_RECIEVER.clone()],
@@ -35,14 +34,14 @@ impl<W: Wave> Default for OscPanel<W> {
     }
 }
 
-impl<W: Wave> OscPanel<W> {
+impl OscPanel  {
     pub fn play(
         &self,
         freq: Vec<f64>,
         modulation: Vec<f64>,
         start: TimeStamp,
         samples: usize,
-    ) -> W {
+    ) -> Wave {
         let mut wave = vec![0.0; samples];
 
         for ((osc, weigth), offset) in self
@@ -67,7 +66,7 @@ impl<W: Wave> OscPanel<W> {
 
             utils::add_elementwise(&mut wave, new_wave)
         }
-        W::from_vec(wave)
+        Wave::from_vec(wave)
     }
 
     pub fn add_osc(&mut self, oscillator: Oscillator) {

@@ -1,7 +1,4 @@
-use std::marker::PhantomData;
-
 use once_cell::sync::Lazy;
-
 use crate::{
     network::{Reciever, Transform},
     time::TimeStamp,
@@ -14,30 +11,28 @@ static VOL_RECIEVER: Lazy<Reciever> =
     Lazy::new(|| Reciever::new(1.0, (0.0, 5.0), Transform::Linear));
 
 #[derive(Debug)]
-pub struct Volume<W> {
-    phantom: PhantomData<W>,
+pub struct Volume {
     volume: Reciever,
     on: bool,
 }
 
-impl<W: Wave> Volume<W> {
+impl Volume {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
             volume: VOL_RECIEVER.clone(),
             on: true,
         }
     }
 }
 
-impl<W: Wave> Default for Volume<W> {
+impl Default for Volume {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W: Wave> Effect<W> for Volume<W> {
-    fn apply(&self, wave: &mut W, time_triggered: TimeStamp) {
+impl Effect for Volume {
+    fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp) {
         if self.on {
             let vol = self.volume.get_vec(time_triggered, wave.len());
             wave.scale_by_vec(vol)
@@ -61,4 +56,4 @@ impl<W: Wave> Effect<W> for Volume<W> {
     }
 }
 
-impl<W: Wave> EffMarker<W> for Volume<W> {}
+impl EffMarker for Volume {}
