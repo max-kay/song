@@ -3,7 +3,7 @@ use crate::{
     globals::TIME_MANAGER,
     instr::{EmptyInstrument, MidiInstrument},
     time::{self},
-    wave::Wave,
+    wave::Wave, Error,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -43,6 +43,7 @@ pub struct Note {
 #[derive(Debug)]
 pub struct MidiTrack {
     name: String,
+    id: Option<u8>,
     instrument: Box<dyn MidiInstrument>,
     gain: f64,
     effects: EffectPanel,
@@ -53,6 +54,7 @@ impl MidiTrack {
     pub fn new() -> Self {
         Self {
             name: String::new(),
+            id: None,
             instrument: Box::new(EmptyInstrument::new()),
             gain: 1.0,
             effects: EffectPanel::EmptyLeaf,
@@ -71,6 +73,7 @@ impl MidiTrack {
     pub fn from_instrument(instrument: Box<dyn MidiInstrument>) -> Self {
         Self {
             name: String::from(instrument.name()),
+            id: None,
             instrument,
             gain: 1.0,
             effects: EffectPanel::EmptyLeaf,
@@ -82,6 +85,11 @@ impl MidiTrack {
 impl MidiTrack {
     pub fn get_name(&self) -> String {
         self.name.clone()
+    }
+
+    pub fn put_in_song(&mut self, id: u8) -> Result<(), Error> {
+        self.id = Some(id);
+        self.instrument.put_in_song(id)
     }
 }
 

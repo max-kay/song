@@ -1,5 +1,3 @@
-use once_cell::sync::Lazy;
-
 use crate::{
     ctrl_f::Error,
     globals::SAMPLE_RATE,
@@ -8,16 +6,13 @@ use crate::{
     utils,
 };
 
-static ATTACK_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.1, (0.0, 25.0), Transform::Linear));
-static DECAY_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.2, (0.0, 25.0), Transform::Linear));
-static SUSTAIN_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.75, (0.0, 1.0), Transform::Linear));
-static RELEASE_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.1, (0.0, 25.0), Transform::Linear));
-static HALF_LIFE_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.2, (0.01, 10.0), Transform::Linear));
+use super::Generator;
+
+const ATTACK_RECIEVER: Reciever = Reciever::new(0.1, (0.0, 25.0), Transform::Linear);
+const DECAY_RECIEVER: Reciever = Reciever::new(0.2, (0.0, 25.0), Transform::Linear);
+const SUSTAIN_RECIEVER: Reciever = Reciever::new(0.75, (0.0, 1.0), Transform::Linear);
+const RELEASE_RECIEVER: Reciever = Reciever::new(0.1, (0.0, 25.0), Transform::Linear);
+const HALF_LIFE_RECIEVER: Reciever = Reciever::new(0.2, (0.01, 10.0), Transform::Linear);
 
 #[derive(Debug)]
 pub struct Envelope {
@@ -31,41 +26,45 @@ pub struct Envelope {
 impl Envelope {
     pub fn new() -> Self {
         Self {
-            attack: ATTACK_RECIEVER.clone(),
-            decay: DECAY_RECIEVER.clone(),
-            sustain: SUSTAIN_RECIEVER.clone(),
+            attack: ATTACK_RECIEVER,
+            decay: DECAY_RECIEVER,
+            sustain: SUSTAIN_RECIEVER,
             half_life: None,
-            release: RELEASE_RECIEVER.clone(),
+            release: RELEASE_RECIEVER,
         }
+    }
+
+    pub fn w_default() -> Generator{
+        Generator::Envelope(Self::default())
     }
 
     pub fn new_decay(decay: f64) -> Result<Self, Error> {
         Ok(Self {
-            attack: ATTACK_RECIEVER.clone().sv(0.0),
-            decay: DECAY_RECIEVER.clone().csv(decay)?,
-            sustain: SUSTAIN_RECIEVER.clone().sv(0.0),
+            attack: ATTACK_RECIEVER.sv(0.0),
+            decay: DECAY_RECIEVER.csv(decay)?,
+            sustain: SUSTAIN_RECIEVER.sv(0.0),
             half_life: None,
-            release: RELEASE_RECIEVER.clone().sv(0.0),
+            release: RELEASE_RECIEVER.sv(0.0),
         })
     }
 
     pub fn new_ad(attack: f64, decay: f64) -> Result<Self, Error> {
         Ok(Self {
-            attack: ATTACK_RECIEVER.clone().csv(attack)?,
-            decay: DECAY_RECIEVER.clone().csv(decay)?,
-            sustain: SUSTAIN_RECIEVER.clone().sv(0.0),
+            attack: ATTACK_RECIEVER.csv(attack)?,
+            decay: DECAY_RECIEVER.csv(decay)?,
+            sustain: SUSTAIN_RECIEVER.sv(0.0),
             half_life: None,
-            release: RELEASE_RECIEVER.clone().sv(0.0),
+            release: RELEASE_RECIEVER.sv(0.0),
         })
     }
 
     pub fn new_adsr(attack: f64, decay: f64, sustain: f64, release: f64) -> Result<Self, Error> {
         Ok(Self {
-            attack: ATTACK_RECIEVER.clone().csv(attack)?,
-            decay: DECAY_RECIEVER.clone().csv(decay)?,
-            sustain: SUSTAIN_RECIEVER.clone().csv(sustain)?,
+            attack: ATTACK_RECIEVER.csv(attack)?,
+            decay: DECAY_RECIEVER.csv(decay)?,
+            sustain: SUSTAIN_RECIEVER.csv(sustain)?,
             half_life: None,
-            release: RELEASE_RECIEVER.clone().csv(release)?,
+            release: RELEASE_RECIEVER.csv(release)?,
         })
     }
 
@@ -77,11 +76,11 @@ impl Envelope {
         release: f64,
     ) -> Result<Envelope, Error> {
         Ok(Self {
-            attack: ATTACK_RECIEVER.clone().csv(attack)?,
-            decay: DECAY_RECIEVER.clone().csv(decay)?,
-            sustain: SUSTAIN_RECIEVER.clone().csv(sustain)?,
-            half_life: Some(HALF_LIFE_RECIEVER.clone().csv(half_life)?),
-            release: RELEASE_RECIEVER.clone().csv(release)?,
+            attack: ATTACK_RECIEVER.csv(attack)?,
+            decay: DECAY_RECIEVER.csv(decay)?,
+            sustain: SUSTAIN_RECIEVER.csv(sustain)?,
+            half_life: Some(HALF_LIFE_RECIEVER.csv(half_life)?),
+            release: RELEASE_RECIEVER.csv(release)?,
         })
     }
 }

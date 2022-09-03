@@ -1,5 +1,5 @@
 use super::{midi, MidiInstrument};
-use crate::wave::Wave;
+use crate::{wave::Wave, Error};
 
 #[derive(Debug)]
 pub struct EmptyInstrument;
@@ -24,5 +24,8 @@ impl MidiInstrument for EmptyInstrument {
     }
     fn name(&self) -> &str {
         "empty"
+    }
+    fn put_in_song(&mut self, _id: u8) -> Result<(), Error> {
+        Ok(())
     }
 }

@@ -1,5 +1,3 @@
-use once_cell::sync::Lazy;
-
 use super::{EffMarker, Effect};
 use crate::{
     globals::TIME_MANAGER,
@@ -10,10 +8,8 @@ use crate::{
 };
 
 const SMALLEST_GAIN_ALLOWED: f64 = 0.05;
-static GAIN_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.6, (0.0, 0.95), Transform::Linear));
-static DELTA_T_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.6, (0.001, 6.0), Transform::Linear));
+const GAIN_RECIEVER: Reciever = Reciever::new(0.6, (0.0, 0.95), Transform::Linear);
+const DELTA_T_RECIEVER: Reciever = Reciever::new(0.6, (0.001, 6.0), Transform::Linear);
 
 #[derive(Debug)]
 pub struct Delay {
@@ -26,8 +22,8 @@ impl Delay {
     pub fn new() -> Self {
         Self {
             on: true,
-            gain: GAIN_RECIEVER.clone(),
-            delta_t: DELTA_T_RECIEVER.clone(),
+            gain: GAIN_RECIEVER,
+            delta_t: DELTA_T_RECIEVER,
         }
     }
 }
@@ -57,8 +53,8 @@ impl Effect for Delay {
     }
 
     fn set_defaults(&mut self) {
-        self.gain = GAIN_RECIEVER.clone();
-        self.delta_t = DELTA_T_RECIEVER.clone();
+        self.gain = GAIN_RECIEVER;
+        self.delta_t = DELTA_T_RECIEVER;
     }
 
     fn on(&mut self) {

@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use crate::{
     network::{Reciever, Transform},
     time::TimeStamp,
@@ -7,8 +6,7 @@ use crate::{
 
 use super::{EffMarker, Effect};
 
-static VOL_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(1.0, (0.0, 5.0), Transform::Linear));
+const VOL_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 
 #[derive(Debug)]
 pub struct Volume {
@@ -19,7 +17,7 @@ pub struct Volume {
 impl Volume {
     pub fn new() -> Self {
         Self {
-            volume: VOL_RECIEVER.clone(),
+            volume: VOL_RECIEVER,
             on: true,
         }
     }
@@ -40,7 +38,7 @@ impl Effect for Volume {
     }
 
     fn set_defaults(&mut self) {
-        self.volume = VOL_RECIEVER.clone()
+        self.volume = VOL_RECIEVER
     }
 
     fn on(&mut self) {

@@ -8,4 +8,4 @@ pub const SAMPLE_RATE: usize = 44100;
 
 pub static TIME_MANAGER: Lazy<Mutex<TimeManager>> = Lazy::new(Mutex::default);
 
-pub static FUNCTION_MANAGER: Lazy<Mutex<GeneratorManager>> = Lazy::new(Mutex::default);
+pub static GENRATOR_MANAGER: Lazy<Mutex<GeneratorManager>> = Lazy::new(Mutex::default);

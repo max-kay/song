@@ -1,7 +1,87 @@
-use crate::{ctrl_f::Error, time::TimeStamp};
+use crate::{ctrl_f::GenId, globals::GENRATOR_MANAGER, time::TimeStamp, utils, Error};
 
 #[derive(Debug, Clone)]
-pub struct Network {}
+pub enum Network {
+    Leaf(GenId),
+    WeightedAverage(Vec<(f64, Network)>),
+    WeightedProduct(Vec<(f64, Network)>),
+    Inverted(Box<Network>),
+}
+
+impl Network {
+    pub fn get_val(&self, time: TimeStamp) -> f64 {
+        match self {
+            Network::Leaf(id) => GENRATOR_MANAGER
+                .lock()
+                .unwrap()
+                .get_val(*id, time)
+                .expect("error in network"),
+            Network::WeightedAverage(vec) => {
+                let mut out = 0.0;
+                let mut sum = 0.0;
+                for (weight, net) in vec {
+                    sum += weight;
+                    out += weight * net.get_val(time)
+                }
+                out / sum
+            }
+            Network::WeightedProduct(vec) => {
+                let mut out = 1.0;
+                let mut sum = 0.0;
+                for (weight, net) in vec {
+                    sum += weight;
+                    out *= net.get_val(time).powf(*weight)
+                }
+                out.powf(1.0 / sum)
+            }
+            Network::Inverted(net) => net.get_val(time) * -1.0 + 1.0,
+        }
+    }
+    pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
+        match self {
+            Network::Leaf(id) => GENRATOR_MANAGER
+                .lock()
+                .unwrap()
+                .get_vec(*id, start, samples)
+                .expect("error in network"),
+            Network::WeightedAverage(vec) => {
+                let mut out = Vec::new();
+                let mut sum = 0.0;
+                for (weight, net) in vec {
+                    sum += weight;
+                    utils::add_elementwise(
+                        &mut out,
+                        net.get_vec(start, samples)
+                            .into_iter()
+                            .map(|x| x * weight)
+                            .collect(),
+                    );
+                }
+                out.into_iter().map(|x| x / sum).collect()
+            }
+            Network::WeightedProduct(vec) => {
+                let mut out = vec![1.0; samples];
+                let mut sum = 0.0;
+                for (weight, net) in vec {
+                    sum += weight;
+                    utils::mul_elementwise(
+                        &mut out,
+                        net.get_vec(start, samples)
+                            .into_iter()
+                            .map(|x| x.powf(*weight))
+                            .collect(),
+                    )
+                }
+                out.into_iter().map(|x| x.powf(1.0 / sum)).collect()
+            }
+            Network::Inverted(net) => net
+                .get_vec(start, samples)
+                .into_iter()
+                .map(|x| x * -1.0 + 1.0)
+                .collect(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Transform {
@@ -9,8 +89,10 @@ pub enum Transform {
 }
 
 impl Transform {
-    pub fn get_fn(range: (f64, f64)) -> Box<dyn Fn(f64) -> f64> {
-        todo!()
+    pub fn get_fn(&self, range: (f64, f64)) -> Box<dyn Fn(f64) -> f64> {
+        match self {
+            Transform::Linear => Box::new(move |x: f64| x * (range.1 - range.0) + range.0),
+        }
     }
 }
 
@@ -23,12 +105,12 @@ pub struct Reciever {
 }
 
 impl Reciever {
-    pub fn new(value: f64, range: (f64, f64), transform: Transform) -> Self {
+    pub const fn new(value: f64, range: (f64, f64), transform: Transform) -> Self {
         Self {
             value,
             range,
-            transform,
             network: None,
+            transform,
         }
     }
     pub fn set_value(&mut self, value: f64) -> Result<(), Error> {
@@ -36,7 +118,7 @@ impl Reciever {
             self.value = value;
             Ok(())
         } else {
-            Err(Error)
+            Err(Error::Reciever)
         }
     }
     pub(crate) fn sv(mut self, val: f64) -> Self {
@@ -48,7 +130,7 @@ impl Reciever {
             self.value = val;
             Ok(self)
         } else {
-            Err(Error)
+            Err(Error::Reciever)
         }
     }
 }
@@ -60,189 +142,20 @@ fn in_range(val: f64, range: (f64, f64)) -> bool {
 
 impl Reciever {
     pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
-        todo!()
+        match &self.network {
+            None => vec![self.transform.get_fn(self.range)(self.value); samples],
+            Some(net) => net
+                .get_vec(start, samples)
+                .into_iter()
+                .map(self.transform.get_fn(self.range))
+                .collect(),
+        }
     }
 
     pub fn get_val(&self, time: TimeStamp) -> f64 {
-        todo!()
+        self.transform.get_fn(self.range)(match &self.network {
+            None => self.value,
+            Some(net) => net.get_val(time),
+        })
     }
 }
-
-// #[derive(Debug)]
-// enum ErrorKind {
-//     Range {
-//         value: f64,
-//         range: (f64, f64),
-//     },
-//     RangeMismatch {
-//         trg_range: (f64, f64),
-//         src_range: (f64, f64),
-//     },
-//     CircRef {
-//         id: usize,
-//     },
-//     DoubleId {
-//         id: usize,
-//     },
-//     FNotFound {
-//         id: usize,
-//     },
-//     PhantomF,
-// }
-
-// #[derive(Debug)]
-// pub struct ControlError {
-//     path: Vec<String>,
-//     origin: String,
-//     control: String,
-//     kind: ErrorKind,
-// }
-
-// impl ControlError {
-//     pub fn new_range_err(value: f64, range: (f64, f64)) -> Self {
-//         Self {
-//             path: Vec::new(),
-//             origin: String::new(),
-//             control: String::new(),
-//             kind: ErrorKind::Range { value, range },
-//         }
-//     }
-
-//     pub fn new_range_mismatch_err(trg_range: (f64, f64), src_range: (f64, f64)) -> Self {
-//         Self {
-//             path: Vec::new(),
-//             origin: String::new(),
-//             control: String::new(),
-//             kind: ErrorKind::RangeMismatch {
-//                 trg_range,
-//                 src_range,
-//             },
-//         }
-//     }
-
-//     pub fn new_circ_ref_err(id: usize) -> Self {
-//         Self {
-//             path: Vec::new(),
-//             origin: String::new(),
-//             control: String::new(),
-//             kind: ErrorKind::CircRef { id },
-//         }
-//     }
-
-//     pub fn new_double_id_err(id: usize) -> Self {
-//         Self {
-//             path: Vec::new(),
-//             origin: String::new(),
-//             control: String::new(),
-//             kind: ErrorKind::DoubleId { id },
-//         }
-//     }
-
-//     pub fn new_func_not_found(id: usize) -> Self {
-//         Self {
-//             path: Vec::new(),
-//             origin: String::new(),
-//             control: String::new(),
-//             kind: ErrorKind::FNotFound { id },
-//         }
-//     }
-
-//     pub fn new_phantom_f_err() -> Self {
-//         Self {
-//             path: Vec::new(),
-//             origin: String::new(),
-//             control: String::new(),
-//             kind: ErrorKind::PhantomF,
-//         }
-//     }
-
-//     pub fn set_origin(mut self, origin: &str, control: &str) -> Self {
-//         self.origin.push_str(origin);
-//         self.control.push_str(control);
-//         self
-//     }
-
-//     pub fn push_location(mut self, location: &str) -> Self {
-//         self.path.push(location.to_string());
-//         self
-//     }
-
-//     fn get_string(&self) -> String {
-//         match &self.kind {
-//             ErrorKind::Range { value, range } => {
-//                 format!(
-//                     "The value of {} in {} was set to {}, which is not in range from {} to {}!\n    full path to value: {}/{}/{}/{}",
-//                     self.control,
-//                     self.origin,
-//                     value,
-//                     range.0,
-//                     range.1,
-//                     self.path.join("/"),
-//                     self.origin,
-//                     self.control,
-//                     value,
-//                 )
-//             }
-//             ErrorKind::CircRef { id } => {
-//                 format!(
-//                     "You tried to set {} in {} to {} this leeds to a circular Reference between CtrlFunctions, which is not allowed!\n    full path to control: {}/{}/{}",
-//                     self.control,
-//                     self.origin,
-//                     id,
-//                     self.path.join("/"),
-//                     self.origin,
-//                     self.control,
-//                 )
-//             }
-//             ErrorKind::RangeMismatch {
-//                 trg_range,
-//                 src_range,
-//             } => {
-//                 format!(
-//                     "You tried to set {} in {} which has a range of ({}, {}) to a control with a range of ({}, {})!\n    full path to control: {}/{}/{}",
-//                     self.control,
-//                     self.origin,
-//                     trg_range.0,
-//                     trg_range.1,
-//                     src_range.0,
-//                     src_range.1,
-//                     self.path.join("/"),
-//                     self.origin,
-//                     self.control,
-//                 )
-//             }
-//             ErrorKind::DoubleId { id } => {
-//                 format!(
-//                     "The id : {}, was encountered twice while creating IdMap",
-//                     id
-//                 )
-//             }
-//             ErrorKind::FNotFound { id } => {
-//                 format!(
-//                     "The source for {} in {} could not find the function with id: {}!\n    full path to control: {}/{}/{}",
-//                     self.control,
-//                     self.origin,
-//                     id,
-//                     self.path.join("/"),
-//                     self.origin,
-//                     self.control,
-//                 )
-//             }
-//             ErrorKind::PhantomF =>
-//             format!(
-//                 "The source for {} in {} has no assigned CtrlFunction!\n    full path to control: {}/{}/{}",
-//                 self.control,
-//                 self.origin,
-//                 self.path.join("/"),
-//                 self.origin,
-//                 self.control,
-//             ),
-//         }
-//     }
-// }
-
-// impl Display for ControlError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{}", self.get_string())
-//     }
-// }

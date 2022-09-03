@@ -1,5 +1,3 @@
-use once_cell::sync::Lazy;
-
 use crate::{
     network::{Reciever, Transform},
     time::TimeStamp,
@@ -11,10 +9,8 @@ use crate::{
 
 use super::PITCH_RECIEVER;
 
-static WEIGHT_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(1.0, (0.0, 5.0), Transform::Linear));
-static PITCH_OFFSET_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.0, (-4800.0, 4800.0), Transform::Linear));
+const WEIGHT_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
+const PITCH_OFFSET_RECIEVER: Reciever = Reciever::new(0.0, (-4800.0, 4800.0), Transform::Linear);
 
 #[derive(Debug)]
 pub struct OscPanel {
@@ -28,8 +24,8 @@ impl Default for OscPanel  {
     fn default() -> Self {
         Self {
             oscillators: vec![Oscillator::default()],
-            weights: vec![WEIGHT_RECIEVER.clone()],
-            pitch_offsets: vec![PITCH_OFFSET_RECIEVER.clone()],
+            weights: vec![WEIGHT_RECIEVER],
+            pitch_offsets: vec![PITCH_OFFSET_RECIEVER],
         }
     }
 }
@@ -71,7 +67,7 @@ impl OscPanel  {
 
     pub fn add_osc(&mut self, oscillator: Oscillator) {
         self.oscillators.push(oscillator);
-        self.pitch_offsets.push(PITCH_RECIEVER.clone());
-        self.weights.push(WEIGHT_RECIEVER.clone());
+        self.pitch_offsets.push(PITCH_RECIEVER);
+        self.weights.push(WEIGHT_RECIEVER);
     }
 }

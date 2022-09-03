@@ -1,9 +1,15 @@
-#[derive(Debug, Default)]
+use super::Generator;
+
+#[derive(Debug)]
 pub struct Constant {
     val: f64,
 }
 
 impl Constant {
+    pub fn w_default() -> Generator {
+        Generator::Constant(Self::default())
+    }
+
     pub fn new() -> Self {
         Self { val: 0.0 }
     }
@@ -20,5 +26,11 @@ impl Constant {
 
     pub fn get_vec(&self, samples: usize) -> Vec<f64> {
         vec![self.val; samples]
+    }
+}
+
+impl Default for Constant {
+    fn default() -> Self {
+        Self { val: 0.0 }
     }
 }

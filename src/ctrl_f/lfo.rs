@@ -1,5 +1,3 @@
-use once_cell::sync::Lazy;
-
 use crate::{
     ctrl_f::Error,
     globals::{SAMPLE_RATE, TIME_MANAGER},
@@ -9,10 +7,10 @@ use crate::{
 };
 use std::f64::consts::TAU;
 
-static FREQ_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(2.0, (0.001, 20.0), Transform::Linear));
-static MOD_RECIEVER: Lazy<Reciever> =
-    Lazy::new(|| Reciever::new(0.5, (0.0, 1.0), Transform::Linear));
+use super::Generator;
+
+const FREQ_RECIEVER: Reciever = Reciever::new(2.0, (0.001, 20.0), Transform::Linear);
+const MOD_RECIEVER: Reciever = Reciever::new(0.5, (0.0, 1.0), Transform::Linear);
 
 #[derive(Debug)]
 pub struct Lfo {
@@ -26,10 +24,14 @@ impl Lfo {
     pub fn new() -> Self {
         Self {
             oscillator: Oscillator::Sine,
-            freq: FREQ_RECIEVER.clone(),
-            modulation: MOD_RECIEVER.clone(),
+            freq: FREQ_RECIEVER,
+            modulation: MOD_RECIEVER,
             phase_shift: 0.0,
         }
+    }
+
+    pub fn w_default() -> Generator {
+        Generator::Lfo(Self::default())
     }
 }
 

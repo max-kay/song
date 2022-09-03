@@ -1,5 +1,7 @@
 use crate::{globals::TIME_MANAGER, time::TimeStamp, utils};
-use std::cmp::Ordering;
+use std::{cmp::Ordering};
+
+use super::Generator;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
@@ -57,8 +59,9 @@ impl Ord for AutomationPoint {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum Interpolation {
+    #[default]
     Linear,
     Smooth,
 }
@@ -72,7 +75,7 @@ impl Interpolation {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PointDefined {
     points: Vec<AutomationPoint>,
     interpolation: Interpolation,
@@ -86,6 +89,10 @@ impl PointDefined {
             points,
             interpolation,
         }
+    }
+
+    pub fn w_default() -> Generator {
+        Generator::PointDefined(Self::default())
     }
 
     fn find_around(&self, time: TimeStamp) -> (f64, f64, f64) {
