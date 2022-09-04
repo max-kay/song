@@ -1,19 +1,20 @@
 use crate::{
     ctrl_f::Error,
     globals::{SAMPLE_RATE, TIME_MANAGER},
-    network::{Reciever, Transform},
+    network::{self, Reciever, Transform},
     time::TimeStamp,
     utils::oscs::Oscillator,
 };
 use std::f64::consts::TAU;
 
-use super::Generator;
+use super::{GenId, Generator};
 
 const FREQ_RECIEVER: Reciever = Reciever::new(2.0, (0.001, 20.0), Transform::Linear);
 const MOD_RECIEVER: Reciever = Reciever::new(0.5, (0.0, 1.0), Transform::Linear);
 
 #[derive(Debug)]
 pub struct Lfo {
+    id: GenId,
     oscillator: Oscillator,
     freq: Reciever,
     modulation: Reciever,
@@ -23,6 +24,7 @@ pub struct Lfo {
 impl Lfo {
     pub fn new() -> Self {
         Self {
+            id: GenId::Unbound,
             oscillator: Oscillator::Sine,
             freq: FREQ_RECIEVER,
             modulation: MOD_RECIEVER,
@@ -33,19 +35,33 @@ impl Lfo {
     pub fn w_default() -> Generator {
         Generator::Lfo(Self::default())
     }
+
+    pub(crate) fn set_id(&mut self, id: GenId) {
+        self.id = id
+    }
+
+    pub fn get_sub_ids(&self) -> Vec<GenId> {
+        let mut out = self.freq.get_ids();
+        out.append(&mut self.modulation.get_ids());
+        out
+    }
 }
 
 impl Lfo {
-    pub fn set(&mut self, other: Lfo) -> Result<(), Error> {
-        todo!()
+    pub fn set(&mut self, other: &Lfo) -> Result<(), Error> {
+        self.set_freq(&other.freq)?;
+        self.set_modulation(&other.modulation)?;
+        self.phase_shift = other.phase_shift;
+        self.oscillator = other.oscillator;
+        Ok(())
     }
 
-    pub fn set_freq(&mut self, freq_ctrl: Reciever) -> Result<(), Error> {
-        todo!()
+    pub fn set_freq(&mut self, freq: &Reciever) -> Result<(), Error> {
+        network::set_reciever(&mut self.freq, self.id, freq)
     }
 
-    pub fn set_modulation(&mut self, modulation_ctrl: Reciever) -> Result<(), Error> {
-        todo!()
+    pub fn set_modulation(&mut self, modulation: &Reciever) -> Result<(), Error> {
+        network::set_reciever(&mut self.modulation, self.id, modulation)
     }
 }
 
@@ -58,7 +74,7 @@ impl Default for Lfo {
 impl Lfo {
     pub fn get_val(&self, time: TimeStamp) -> f64 {
         let phase =
-            ((TIME_MANAGER.lock().unwrap().stamp_to_seconds(time) * TAU * self.freq.get_val(time)
+            ((TIME_MANAGER.read().unwrap().stamp_to_seconds(time) * TAU * self.freq.get_val(time)
                 / (SAMPLE_RATE as f64))
                 + self.phase_shift)
                 % TAU;

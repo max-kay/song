@@ -44,7 +44,7 @@ impl Effect for Delay {
             source.scale(gain);
             wave.add(&source, utils::seconds_to_samples(delta_t));
             current_time = TIME_MANAGER
-                .lock()
+                .read()
                 .unwrap()
                 .add_seconds_to_stamp(current_time, delta_t);
             delta_t += self.delta_t.get_val(current_time);

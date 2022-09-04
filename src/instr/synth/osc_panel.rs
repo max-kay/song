@@ -6,7 +6,6 @@ use crate::{
     wave::Wave,
 };
 
-
 use super::PITCH_RECIEVER;
 
 const WEIGHT_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
@@ -14,13 +13,12 @@ const PITCH_OFFSET_RECIEVER: Reciever = Reciever::new(0.0, (-4800.0, 4800.0), Tr
 
 #[derive(Debug)]
 pub struct OscPanel {
-
     oscillators: Vec<Oscillator>,
     weights: Vec<Reciever>,
     pitch_offsets: Vec<Reciever>,
 }
 
-impl Default for OscPanel  {
+impl Default for OscPanel {
     fn default() -> Self {
         Self {
             oscillators: vec![Oscillator::default()],
@@ -30,7 +28,7 @@ impl Default for OscPanel  {
     }
 }
 
-impl OscPanel  {
+impl OscPanel {
     pub fn play(
         &self,
         freq: Vec<f64>,

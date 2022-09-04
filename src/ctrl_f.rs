@@ -14,7 +14,7 @@ pub use envelope::Envelope;
 pub use lfo::Lfo;
 pub use point_defined::PointDefined;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GenId {
     Unbound,
     Global(u8),
@@ -39,7 +39,7 @@ impl Default for GenId {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SaveId {
     Unbound,
     Global,
@@ -48,12 +48,12 @@ pub enum SaveId {
 }
 
 impl SaveId {
-    pub fn add_key(&self, key: u8) -> GenId {
+    pub fn add_key(&self, key: u8) -> Result<GenId, Error> {
         match self {
-            SaveId::Unbound => GenId::Unbound,
-            SaveId::Global => GenId::Global(key),
-            SaveId::Track(track) => GenId::Track { track: *track, key },
-            SaveId::Instr(track) => GenId::Instr { track: *track, key },
+            SaveId::Unbound => Err(Error::Unbound),
+            SaveId::Global => Ok(GenId::Global(key)),
+            SaveId::Track(track) => Ok(GenId::Track { track: *track, key }),
+            SaveId::Instr(track) => Ok(GenId::Instr { track: *track, key }),
         }
     }
 }
@@ -70,6 +70,26 @@ pub enum Generator {
     Lfo(Lfo),
     PointDefined(PointDefined),
     Envelope(Envelope),
+}
+
+impl Generator {
+    pub fn get_sub_ids(&self) -> Vec<GenId> {
+        match self {
+            Generator::Constant(f) => f.get_sub_ids(),
+            Generator::Lfo(f) => f.get_sub_ids(),
+            Generator::PointDefined(_) => Vec::new(),
+            Generator::Envelope(f) => f.get_sub_ids(),
+        }
+    }
+
+    pub fn set_id(&mut self, id: GenId) {
+        match self {
+            Generator::Constant(gen) => gen.set_id(id),
+            Generator::Lfo(gen) => gen.set_id(id),
+            Generator::PointDefined(gen) => gen.set_id(id),
+            Generator::Envelope(gen) => gen.set_id(id),
+        }
+    }
 }
 
 impl Generator {
@@ -103,27 +123,37 @@ impl Generator {
             Generator::Constant(con) => {
                 con.set(val);
                 Ok(())
-            },
+            }
             _ => Err(Error::Type),
         }
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct GeneratorSave {
+    id: SaveId,
     map: HashMap<u8, Generator>,
 }
 
 impl GeneratorSave {
-    pub fn new() -> Self {
+    pub fn new(id: SaveId) -> Self {
         Self {
+            id,
             map: HashMap::default(),
         }
     }
 
-    pub fn add_generator(&mut self, gen: Generator) -> Result<u8, Error> {
+    pub fn get_sub_ids(&self, key: u8) -> Result<Vec<GenId>, Error> {
+        match self.map.get(&key) {
+            Some(gen) => Ok(gen.get_sub_ids()),
+            None => Err(Error::Existance),
+        }
+    }
+
+    pub fn add_generator(&mut self, mut gen: Generator) -> Result<u8, Error> {
         for i in 0..=u8::MAX {
             if let Entry::Vacant(e) = self.map.entry(i) {
+                gen.set_id(self.id.add_key(i)?);
                 e.insert(gen);
                 return Ok(i);
             }
@@ -170,7 +200,7 @@ impl GeneratorSave {
 #[derive(Debug)]
 pub struct TrackGManager {
     pub track_id: u8,
-    pub locals: GeneratorSave,
+    pub track: GeneratorSave,
     pub instr: GeneratorSave,
 }
 
@@ -178,16 +208,31 @@ impl TrackGManager {
     pub fn new(id: u8) -> Self {
         Self {
             track_id: id,
-            locals: Default::default(),
-            instr: Default::default(),
+            track: GeneratorSave::new(SaveId::Track(id)),
+            instr: GeneratorSave::new(SaveId::Instr(id)),
         }
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct GeneratorManager {
     globals: GeneratorSave,
     tracks: HashMap<u8, TrackGManager>,
+}
+
+impl GeneratorManager {
+    pub fn new() -> Self {
+        Self {
+            globals: GeneratorSave::new(SaveId::Global),
+            tracks: HashMap::new(),
+        }
+    }
+}
+
+impl Default for GeneratorManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GeneratorManager {
@@ -196,7 +241,7 @@ impl GeneratorManager {
             SaveId::Unbound => Err(Error::Unbound),
             SaveId::Global => Ok(&self.globals),
             SaveId::Track(track) => match self.tracks.get(&track) {
-                Some(tgm) => Ok(&tgm.locals),
+                Some(tgm) => Ok(&tgm.track),
                 None => Err(Error::Existance),
             },
             SaveId::Instr(track) => match self.tracks.get(&track) {
@@ -210,7 +255,7 @@ impl GeneratorManager {
             SaveId::Unbound => Err(Error::Unbound),
             SaveId::Global => Ok(&mut self.globals),
             SaveId::Track(track) => match self.tracks.get_mut(&track) {
-                Some(tgm) => Ok(&mut tgm.locals),
+                Some(tgm) => Ok(&mut tgm.track),
                 None => Err(Error::Existance),
             },
             SaveId::Instr(track) => match self.tracks.get_mut(&track) {
@@ -218,6 +263,13 @@ impl GeneratorManager {
                 None => Err(Error::Existance),
             },
         }
+    }
+}
+
+impl GeneratorManager {
+    pub fn get_sub_ids(&self, id: GenId) -> Result<Vec<GenId>, Error> {
+        let (id, key) = id.decompose()?;
+        self.get(id)?.get_sub_ids(key)
     }
 }
 
@@ -263,6 +315,6 @@ impl GeneratorManager {
 
     pub fn add_generator(&mut self, gen: Generator, id: SaveId) -> Result<GenId, Error> {
         let save = self.get_mut(id)?;
-        Ok(id.add_key(save.add_generator(gen)?))
+        id.add_key(save.add_generator(gen)?)
     }
 }

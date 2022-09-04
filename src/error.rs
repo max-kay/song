@@ -1,12 +1,14 @@
 #[derive(Debug)]
-pub enum Error{
+pub enum Error {
+    Loop,
     Type,
     Existance,
     Overwrite,
     Unbound,
     Overflow,
     Reciever,
-    Unintialised
+    Unintialised,
+    RecieverMisMatch,
 }
 
 // #[derive(Debug)]

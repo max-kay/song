@@ -4,7 +4,7 @@ use std::{
     fmt::Debug,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Oscillator {
     Sine,
     ModSquare,

@@ -1,7 +1,7 @@
 use crate::{globals::TIME_MANAGER, time::TimeStamp, utils};
-use std::{cmp::Ordering};
+use std::cmp::Ordering;
 
-use super::Generator;
+use super::{GenId, Generator};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AutomationPoint {
@@ -77,6 +77,7 @@ impl Interpolation {
 
 #[derive(Debug, Default)]
 pub struct PointDefined {
+    id: GenId,
     points: Vec<AutomationPoint>,
     interpolation: Interpolation,
 }
@@ -86,6 +87,7 @@ impl PointDefined {
         points.sort();
         points.dedup_by_key(|x| x.get_time());
         Self {
+            id: GenId::Unbound,
             points,
             interpolation,
         }
@@ -93,6 +95,10 @@ impl PointDefined {
 
     pub fn w_default() -> Generator {
         Generator::PointDefined(Self::default())
+    }
+
+    pub(crate) fn set_id(&mut self, id: GenId) {
+        self.id = id
     }
 
     fn find_around(&self, time: TimeStamp) -> (f64, f64, f64) {
@@ -108,11 +114,11 @@ impl PointDefined {
         let val1 = p1.get_val();
         let val2 = p2.get_val();
         let tot_secs = TIME_MANAGER
-            .lock()
+            .read()
             .unwrap()
             .duration_to_seconds(p1.get_time(), p2.get_time());
         let part_secs = TIME_MANAGER
-            .lock()
+            .read()
             .unwrap()
             .duration_to_seconds(p1.get_time(), time);
         (val1, val2, part_secs / tot_secs)
@@ -133,7 +139,7 @@ impl PointDefined {
     }
 
     pub fn get_vec(&self, onset: TimeStamp, samples: usize) -> Vec<f64> {
-        let time_stamps = TIME_MANAGER.lock().unwrap().get_stamp_vec(onset, samples);
+        let time_stamps = TIME_MANAGER.read().unwrap().get_stamp_vec(onset, samples);
         let mut out = Vec::with_capacity(samples);
         for t in time_stamps {
             out.push(self.get_val(t))

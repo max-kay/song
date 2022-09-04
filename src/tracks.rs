@@ -10,7 +10,7 @@ pub enum Track {
 }
 
 impl Track {
-    pub fn put_in_song(&mut self, id: u8) -> Result<(), Error>{
+    pub fn put_in_song(&mut self, id: u8) -> Result<(), Error> {
         match self {
             Track::Midi(track) => track.put_in_song(id),
         }

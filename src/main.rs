@@ -1,7 +1,6 @@
-use song::{instr::Synthesizer, Song, tracks::midi};
+use song::{instr::Synthesizer, tracks::midi, Song};
 
 fn main() {
     let mut song = Song::new("my Song".to_string());
     let mut track = midi::MidiTrack::new();
-
 }

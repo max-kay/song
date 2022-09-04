@@ -9,10 +9,37 @@ pub enum Network {
 }
 
 impl Network {
+    pub fn get_ids(&self) -> Result<Vec<GenId>, Error> {
+        match self {
+            Network::Leaf(id) => {
+                let mut out = GENRATOR_MANAGER.read().unwrap().get_sub_ids(*id)?;
+                out.push(*id);
+                Ok(out)
+            }
+            Network::WeightedAverage(vec) => {
+                let mut out = Vec::new();
+                for (_, net) in vec {
+                    out.append(&mut net.get_ids()?)
+                }
+                Ok(out)
+            }
+            Network::WeightedProduct(vec) => {
+                let mut out = Vec::new();
+                for (_, net) in vec {
+                    out.append(&mut net.get_ids()?)
+                }
+                Ok(out)
+            }
+            Network::Inverted(net) => net.get_ids(),
+        }
+    }
+}
+
+impl Network {
     pub fn get_val(&self, time: TimeStamp) -> f64 {
         match self {
             Network::Leaf(id) => GENRATOR_MANAGER
-                .lock()
+                .read()
                 .unwrap()
                 .get_val(*id, time)
                 .expect("error in network"),
@@ -37,10 +64,11 @@ impl Network {
             Network::Inverted(net) => net.get_val(time) * -1.0 + 1.0,
         }
     }
+
     pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
         match self {
             Network::Leaf(id) => GENRATOR_MANAGER
-                .lock()
+                .read()
                 .unwrap()
                 .get_vec(*id, start, samples)
                 .expect("error in network"),
@@ -83,7 +111,7 @@ impl Network {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Transform {
     Linear,
 }
@@ -132,6 +160,34 @@ impl Reciever {
         } else {
             Err(Error::Reciever)
         }
+    }
+
+    pub fn compare(&self, other: &Reciever) -> bool {
+        self.range == other.range && self.transform == other.transform
+    }
+
+    pub fn get_ids(&self) -> Vec<GenId> {
+        match &self.network {
+            Some(net) => net.get_ids().unwrap(),
+            None => Vec::new(),
+        }
+    }
+}
+
+pub fn set_reciever(
+    target: &mut Reciever,
+    target_id: GenId,
+    source: &Reciever,
+) -> Result<(), Error> {
+    if !target.compare(source) {
+        return Err(Error::RecieverMisMatch);
+    }
+    if !source.get_ids().contains(&target_id) {
+        target.value = source.value;
+        target.network = source.network.clone();
+        Ok(())
+    } else {
+        Err(Error::Loop)
     }
 }
 

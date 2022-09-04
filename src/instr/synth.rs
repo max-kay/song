@@ -5,7 +5,8 @@ use crate::{
     network::{Reciever, Transform},
     time::TimeStamp,
     tracks::midi,
-    wave::Wave, Error,
+    wave::Wave,
+    Error,
 };
 use std::path::Path;
 
@@ -50,7 +51,7 @@ impl Synthesizer {
     fn play_freq(&self, note_on: TimeStamp, note_off: TimeStamp, freq: f64, velocity: f64) -> Wave {
         self.local_g_manager.set_velocity(velocity);
         let sus_samples = TIME_MANAGER
-            .lock()
+            .read()
             .unwrap()
             .duration_to_samples(note_on, note_off);
 
@@ -87,7 +88,7 @@ impl MidiInstrument for Synthesizer {
             let sound = self.play_note(*note);
             wave.add_consuming(
                 sound,
-                TIME_MANAGER.lock().unwrap().stamp_to_samples(note.on),
+                TIME_MANAGER.read().unwrap().stamp_to_samples(note.on),
             );
         }
         wave
@@ -103,8 +104,8 @@ impl MidiInstrument for Synthesizer {
 
 impl Synthesizer {
     pub fn play_test_chord(&self) -> Wave {
-        let note_on = TIME_MANAGER.lock().unwrap().zero();
-        let note_off = TIME_MANAGER.lock().unwrap().seconds_to_stamp(6.0);
+        let note_on = TIME_MANAGER.read().unwrap().zero();
+        let note_off = TIME_MANAGER.read().unwrap().seconds_to_stamp(6.0);
         let mut wave = self.play_freq(note_on, note_off, 300.0, 0.7);
         wave.add_consuming(self.play_freq(note_on, note_off, 375.0, 0.7), 0);
         wave.add_consuming(self.play_freq(note_on, note_off, 450.0, 0.7), 0);

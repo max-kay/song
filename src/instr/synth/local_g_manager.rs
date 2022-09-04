@@ -41,7 +41,7 @@ impl LocalGManager {
 
     pub fn set_velocity(&self, vel: f64) {
         GENRATOR_MANAGER
-            .lock()
+            .write()
             .unwrap()
             .set_const(self.velocity, vel)
             .unwrap()
@@ -49,7 +49,7 @@ impl LocalGManager {
 
     pub fn get_main_envelope(&self, note_on: TimeStamp, sus_samples: usize) -> Vec<f64> {
         GENRATOR_MANAGER
-            .lock()
+            .read()
             .unwrap()
             .get_envelope(self.main_enevelope, note_on, sus_samples)
             .unwrap()
@@ -58,7 +58,7 @@ impl LocalGManager {
     pub fn init(&mut self, id: u8) -> Result<(), Error> {
         let instr = SaveId::Instr(id);
         let track = SaveId::Track(id);
-        let mut manager = GENRATOR_MANAGER.lock().unwrap();
+        let mut manager = GENRATOR_MANAGER.write().unwrap();
         manager.new_track(id)?;
         self.main_enevelope = manager.add_generator(Envelope::w_default(), instr)?;
         self.alt_enevelope = manager.add_generator(Envelope::w_default(), instr)?;

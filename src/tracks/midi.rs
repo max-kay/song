@@ -2,8 +2,9 @@ use crate::{
     effects::EffectPanel,
     globals::TIME_MANAGER,
     instr::{EmptyInstrument, MidiInstrument},
-    time::{self},
-    wave::Wave, Error,
+    time,
+    wave::Wave,
+    Error,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -65,7 +66,7 @@ impl MidiTrack {
     pub fn play(&self) -> Wave {
         let mut wave = self.instrument.play_notes(&self.notes);
         self.effects
-            .apply_to(&mut wave, TIME_MANAGER.lock().unwrap().zero());
+            .apply_to(&mut wave, TIME_MANAGER.read().unwrap().zero());
         wave.scale(self.gain);
         wave
     }
