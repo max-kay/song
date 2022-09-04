@@ -7,7 +7,7 @@ pub mod midi;
 pub use midi::MidiTrack;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Track {
     Midi(midi::MidiTrack),
 }

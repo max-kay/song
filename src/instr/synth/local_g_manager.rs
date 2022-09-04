@@ -7,7 +7,7 @@ use crate::{
     Error,
 };
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LocalGManager {
     track_id: Option<u8>,
     main_enevelope: GenId,

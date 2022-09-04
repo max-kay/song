@@ -64,6 +64,7 @@ impl Ord for AutomationPoint {
 #[derive(Clone, Copy)]
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub enum Interpolation {
+    Step,
     #[default]
     Linear,
     Smooth,
@@ -72,6 +73,7 @@ pub enum Interpolation {
 impl Interpolation {
     pub fn interpolate(&self, val1: f64, val2: f64, progress: f64) -> f64 {
         match self {
+            Interpolation::Step => val1,
             Interpolation::Linear => (val2 - val1) * progress + val1,
             Interpolation::Smooth => (val2 - val1) * utils::smooth_step(progress) + val1,
         }

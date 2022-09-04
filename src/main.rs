@@ -2,7 +2,7 @@ use song::{
     instr::{synth::OscPanel, MidiInstrument, Synthesizer},
     tracks::midi,
     utils::oscs::Oscillator,
-    Song,
+    Song, SongData,
 };
 
 fn main() {
@@ -24,6 +24,7 @@ fn main() {
     )
     .unwrap();
     mref.oscillators = osc_panel;
-    let string = ron::ser::to_string_pretty(&song, Default::default()).unwrap();
+    let song_data = SongData::from(&song);
+    let string = ron::ser::to_string_pretty(&song_data, Default::default()).unwrap();
     println!("{}", string)
 }

@@ -21,7 +21,7 @@ const PITCH_RECIEVER: Reciever = Reciever::new(0.0, (-4800.0, 4800.0), Transform
 const MOD_RECIEVER: Reciever = Reciever::new(0.5, (0.0, 1.0), Transform::Linear);
 const VOL_CTRL_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Synthesizer {
     name: String,
     id: Option<u8>,

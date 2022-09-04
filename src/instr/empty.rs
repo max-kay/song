@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use super::{midi, MidiInstrument};
 use crate::{wave::Wave, Error};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmptyInstrument;
 impl EmptyInstrument {
     pub fn new() -> Self {

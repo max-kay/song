@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     effects::EffectPanel,
@@ -45,7 +45,7 @@ pub struct Note {
     pub velocity: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MidiTrack {
     name: String,
     id: Option<u8>,

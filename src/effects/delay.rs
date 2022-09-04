@@ -13,7 +13,7 @@ const SMALLEST_GAIN_ALLOWED: f64 = 0.05;
 const GAIN_RECIEVER: Reciever = Reciever::new(0.6, (0.0, 0.95), Transform::Linear);
 const DELTA_T_RECIEVER: Reciever = Reciever::new(0.6, (0.001, 6.0), Transform::Linear);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Delay {
     on: bool,
     gain: Reciever,

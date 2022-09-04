@@ -2,8 +2,10 @@
 
 use std::{any::Any, collections::HashMap, u8};
 
-use globals::{TIME_MANAGER, GENRATOR_MANAGER};
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use ctrl_f::GeneratorManager;
+use globals::{GENRATOR_MANAGER, TIME_MANAGER};
+use serde::{Deserialize, Serialize};
+use time::TimeManager;
 use tracks::{MidiTrack, Track};
 use wave::Wave;
 
@@ -71,16 +73,33 @@ impl Song {
     }
 }
 
-impl Serialize for Song {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("Song", 4)?;
-        state.serialize_field("name", &self.name)?;
-        state.serialize_field("tracks", &self.tracks)?;
-        state.serialize_field("time_manager", &TIME_MANAGER.read().unwrap().clone())?;
-        state.serialize_field("generator_manager", &GENRATOR_MANAGER.read().unwrap().clone())?;
-        state.end()
+impl From<SongData> for Song{
+    fn from(data: SongData) -> Self {
+        *GENRATOR_MANAGER.write().unwrap() = data.generator_manager;
+        *TIME_MANAGER.write().unwrap() = data.time_manager;
+        Self {
+            name: data.name,
+            tracks: data.tracks,
+        }
+    }
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SongData {
+    name: String,
+    tracks: HashMap<u8, Track>,
+    time_manager: TimeManager,
+    generator_manager: GeneratorManager,
+}
+
+impl From<&Song> for SongData {
+    fn from(song: &Song) -> Self {
+        Self {
+            name: song.name.clone(),
+            tracks: song.tracks.clone(),
+            time_manager: TIME_MANAGER.read().unwrap().clone(),
+            generator_manager: GENRATOR_MANAGER.read().unwrap().clone(),
+        }
     }
 }

@@ -16,7 +16,7 @@ use super::PITCH_RECIEVER;
 const WEIGHT_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 const PITCH_OFFSET_RECIEVER: Reciever = Reciever::new(0.0, (-4800.0, 4800.0), Transform::Linear);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OscPanel {
     oscillators: Vec<Oscillator>,
     weights: Vec<Reciever>,

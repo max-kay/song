@@ -10,7 +10,7 @@ use super::{ Effect};
 
 const VOL_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Volume {
     volume: Reciever,
     on: bool,
