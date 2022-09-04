@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
+
 use crate::{ctrl_f::GenId, globals::GENRATOR_MANAGER, time::TimeStamp, utils, Error};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Network {
     Leaf(GenId),
     WeightedAverage(Vec<(f64, Network)>),
@@ -112,6 +114,7 @@ impl Network {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
 pub enum Transform {
     Linear,
 }
@@ -124,7 +127,7 @@ impl Transform {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Reciever {
     value: f64,
     range: (f64, f64),

@@ -1,9 +1,14 @@
+use std::vec;
+
+use serde::{Serialize, Deserialize};
+
 use crate::{
     network::{Reciever, Transform},
     time::TimeStamp,
     utils,
     utils::oscs::Oscillator,
     wave::Wave,
+    Error,
 };
 
 use super::PITCH_RECIEVER;
@@ -11,11 +16,32 @@ use super::PITCH_RECIEVER;
 const WEIGHT_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 const PITCH_OFFSET_RECIEVER: Reciever = Reciever::new(0.0, (-4800.0, 4800.0), Transform::Linear);
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OscPanel {
     oscillators: Vec<Oscillator>,
     weights: Vec<Reciever>,
     pitch_offsets: Vec<Reciever>,
+}
+
+impl OscPanel {
+    pub fn from_oscs(
+        oscillators: Vec<Oscillator>,
+        weights: Option<Vec<f64>>,
+    ) -> Result<Self, Error> {
+        let mut reciever = vec![WEIGHT_RECIEVER; oscillators.len()];
+        if let Some(weights) = weights {
+            assert_eq!(oscillators.len(), weights.len());
+            for (r, w) in reciever.iter_mut().zip(weights) {
+                r.set_value(w)?;
+            }
+        }
+
+        Ok(Self {
+            pitch_offsets: vec![PITCH_OFFSET_RECIEVER; oscillators.len()],
+            oscillators,
+            weights: reciever,
+        })
+    }
 }
 
 impl Default for OscPanel {

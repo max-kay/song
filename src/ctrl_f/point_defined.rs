@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{globals::TIME_MANAGER, time::TimeStamp, utils};
 use std::cmp::Ordering;
 
 use super::{GenId, Generator};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AutomationPoint {
     value: f64,
     time: TimeStamp,
@@ -59,7 +61,8 @@ impl Ord for AutomationPoint {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Copy)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub enum Interpolation {
     #[default]
     Linear,
@@ -75,7 +78,7 @@ impl Interpolation {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PointDefined {
     id: GenId,
     points: Vec<AutomationPoint>,

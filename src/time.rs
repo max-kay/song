@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
+
 use crate::utils::{samples_to_seconds, seconds_to_samples};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeManager {
     pub ticks_per_beat: u16,
     pub beats_per_bar: u16,
@@ -109,6 +111,7 @@ impl TimeManager {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
 pub struct TimeStamp {
     bar: u16,
     beat: u16,

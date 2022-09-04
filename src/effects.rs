@@ -6,10 +6,9 @@ pub mod reverb;
 pub mod volume;
 
 pub use delay::Delay;
+use serde::{Deserialize, Serialize};
 
-trait EffMarker: Effect + Default {}
-
-pub trait Effect: Debug {
+pub trait Effect: Debug + serde_traitobject::Serialize + serde_traitobject::Deserialize {
     fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn on(&mut self);
@@ -17,8 +16,9 @@ pub trait Effect: Debug {
     fn toggle(&mut self);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum EffectPanel {
+    #[serde(with = "serde_traitobject")]
     Leaf(Box<dyn Effect>),
     Node(Vec<EffectPanel>),
     EmptyLeaf,

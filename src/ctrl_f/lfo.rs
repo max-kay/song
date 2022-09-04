@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use crate::{
     ctrl_f::Error,
     globals::{SAMPLE_RATE, TIME_MANAGER},
@@ -12,7 +14,7 @@ use super::{GenId, Generator};
 const FREQ_RECIEVER: Reciever = Reciever::new(2.0, (0.001, 20.0), Transform::Linear);
 const MOD_RECIEVER: Reciever = Reciever::new(0.5, (0.0, 1.0), Transform::Linear);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lfo {
     id: GenId,
     oscillator: Oscillator,

@@ -1,3 +1,7 @@
+use std::any::Any;
+
+use serde::{Serialize, Deserialize};
+
 use crate::{
     effects::EffectPanel,
     globals::TIME_MANAGER,
@@ -7,7 +11,7 @@ use crate::{
     Error,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Pitch {
     value: u8,
 }
@@ -33,7 +37,7 @@ impl Pitch {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Note {
     pub pitch: Pitch,
     pub on: time::TimeStamp,
@@ -41,10 +45,11 @@ pub struct Note {
     pub velocity: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MidiTrack {
     name: String,
     id: Option<u8>,
+    #[serde(with = "serde_traitobject")]
     instrument: Box<dyn MidiInstrument>,
     gain: f64,
     effects: EffectPanel,
@@ -91,6 +96,10 @@ impl MidiTrack {
     pub fn put_in_song(&mut self, id: u8) -> Result<(), Error> {
         self.id = Some(id);
         self.instrument.put_in_song(id)
+    }
+
+    pub fn get_instr_as_any(&mut self) -> &mut dyn Any {
+        self.instrument.as_any()
     }
 }
 

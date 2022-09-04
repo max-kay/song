@@ -13,8 +13,10 @@ pub use constant::Constant;
 pub use envelope::Envelope;
 pub use lfo::Lfo;
 pub use point_defined::PointDefined;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
 pub enum GenId {
     Unbound,
     Global(u8),
@@ -40,6 +42,7 @@ impl Default for GenId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
 pub enum SaveId {
     Unbound,
     Global,
@@ -64,7 +67,7 @@ impl Default for SaveId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Generator {
     Constant(Constant),
     Lfo(Lfo),
@@ -129,7 +132,7 @@ impl Generator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone,  Serialize, Deserialize)]
 pub struct GeneratorSave {
     id: SaveId,
     map: HashMap<u8, Generator>,
@@ -197,7 +200,7 @@ impl GeneratorSave {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackGManager {
     pub track_id: u8,
     pub track: GeneratorSave,
@@ -214,7 +217,7 @@ impl TrackGManager {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeneratorManager {
     globals: GeneratorSave,
     tracks: HashMap<u8, TrackGManager>,

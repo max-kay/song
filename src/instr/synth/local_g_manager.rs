@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use crate::{
     ctrl_f::{Constant, Envelope, GenId, Lfo, PointDefined, SaveId},
     globals::GENRATOR_MANAGER,
@@ -5,7 +7,7 @@ use crate::{
     Error,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct LocalGManager {
     track_id: Option<u8>,
     main_enevelope: GenId,

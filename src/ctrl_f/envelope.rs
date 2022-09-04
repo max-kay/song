@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use crate::{
     ctrl_f::Error,
     globals::SAMPLE_RATE,
@@ -14,7 +16,7 @@ const SUSTAIN_RECIEVER: Reciever = Reciever::new(0.75, (0.0, 1.0), Transform::Li
 const RELEASE_RECIEVER: Reciever = Reciever::new(0.1, (0.0, 25.0), Transform::Linear);
 const HALF_LIFE_RECIEVER: Reciever = Reciever::new(0.2, (0.01, 10.0), Transform::Linear);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Envelope {
     id: GenId,
     attack: Reciever,

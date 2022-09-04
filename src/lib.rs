@@ -1,7 +1,9 @@
 #![warn(missing_debug_implementations)]
 
-use std::{collections::HashMap, u8};
+use std::{any::Any, collections::HashMap, u8};
 
+use globals::{TIME_MANAGER, GENRATOR_MANAGER};
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use tracks::{MidiTrack, Track};
 use wave::Wave;
 
@@ -53,11 +55,32 @@ impl Song {
         Err(Error::Overflow)
     }
 
+    pub fn get_instr_as_any(&mut self, track_id: u8) -> &mut dyn Any {
+        match self.tracks.get_mut(&track_id) {
+            Some(track) => track.get_instr_as_any(),
+            None => todo!(),
+        }
+    }
+
     pub fn get_wave(&self) -> Wave {
         let mut wave = Wave::new();
         for track in self.tracks.values() {
             wave.add_consuming(track.play(), 0);
         }
         wave
+    }
+}
+
+impl Serialize for Song {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Song", 4)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("tracks", &self.tracks)?;
+        state.serialize_field("time_manager", &TIME_MANAGER.read().unwrap().clone())?;
+        state.serialize_field("generator_manager", &GENRATOR_MANAGER.read().unwrap().clone())?;
+        state.end()
     }
 }

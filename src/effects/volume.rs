@@ -1,14 +1,16 @@
+use serde::{Serialize, Deserialize};
+
 use crate::{
     network::{Reciever, Transform},
     time::TimeStamp,
     wave::Wave,
 };
 
-use super::{EffMarker, Effect};
+use super::{ Effect};
 
 const VOL_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Volume {
     volume: Reciever,
     on: bool,
@@ -53,5 +55,3 @@ impl Effect for Volume {
         self.on = !self.on
     }
 }
-
-impl EffMarker for Volume {}

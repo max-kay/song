@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
+
 use super::{GenId, Generator};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize , Deserialize)]
 pub struct Constant {
     id: GenId,
     val: f64,
