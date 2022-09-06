@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug)]
 pub enum Error {
     Loop,
@@ -9,7 +11,17 @@ pub enum Error {
     Reciever,
     Unintialised,
     RecieverMisMatch,
+    Value,
+    Parse,
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("my error") // TODO
+    }
+}
+
+impl std::error::Error for Error {}
 
 // #[derive(Debug)]
 // enum ErrorKind {

@@ -10,7 +10,7 @@ use dyn_clone::DynClone;
 use serde::{Deserialize, Serialize};
 use serde_traitobject as ser_tr;
 
-pub trait Effect: Debug + ser_tr::Serialize + ser_tr::Deserialize + DynClone{
+pub trait Effect: Debug + ser_tr::Serialize + ser_tr::Deserialize + DynClone {
     fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp);
     fn set_defaults(&mut self);
     fn on(&mut self);
@@ -20,7 +20,7 @@ pub trait Effect: Debug + ser_tr::Serialize + ser_tr::Deserialize + DynClone{
 
 dyn_clone::clone_trait_object!(Effect);
 
-#[derive(Debug, Clone,  Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EffectPanel {
     #[serde(with = "serde_traitobject")]
     Leaf(Box<dyn Effect>),

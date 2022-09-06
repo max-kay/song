@@ -15,6 +15,7 @@ pub trait MidiInstrument: Debug + ser_tr::Serialize + ser_tr::Deserialize + DynC
     fn name(&self) -> &str;
     fn put_in_song(&mut self, id: u8) -> Result<(), Error>;
     fn as_any(&mut self) -> &mut dyn Any;
+    fn set_id(&mut self, id: u8);
 }
 
 dyn_clone::clone_trait_object!(MidiInstrument);

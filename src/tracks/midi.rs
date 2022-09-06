@@ -3,8 +3,9 @@ use std::any::Any;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    ctrl_f::{GenId, PointDefined, SaveId},
     effects::EffectPanel,
-    globals::TIME_MANAGER,
+    globals::{GENRATOR_MANAGER, TIME_MANAGER},
     instr::{EmptyInstrument, MidiInstrument},
     time,
     wave::Wave,
@@ -49,6 +50,8 @@ pub struct Note {
 pub struct MidiTrack {
     name: String,
     id: Option<u8>,
+    pitch_bend_id: Option<GenId>,
+    after_touch_id: Option<GenId>,
     #[serde(with = "serde_traitobject")]
     instrument: Box<dyn MidiInstrument>,
     gain: f64,
@@ -60,6 +63,8 @@ impl MidiTrack {
     pub fn new() -> Self {
         Self {
             name: String::new(),
+            pitch_bend_id: None,
+            after_touch_id: None,
             id: None,
             instrument: Box::new(EmptyInstrument::new()),
             gain: 1.0,
@@ -80,6 +85,8 @@ impl MidiTrack {
         Self {
             name: String::from(instrument.name()),
             id: None,
+            pitch_bend_id: None,
+            after_touch_id: None,
             instrument,
             gain: 1.0,
             effects: EffectPanel::EmptyLeaf,
@@ -95,11 +102,31 @@ impl MidiTrack {
 
     pub fn put_in_song(&mut self, id: u8) -> Result<(), Error> {
         self.id = Some(id);
+        self.pitch_bend_id = Some(
+            GENRATOR_MANAGER
+                .write()
+                .unwrap()
+                .add_generator(PointDefined::w_val(0.5)?, SaveId::Track(id))?,
+        );
         self.instrument.put_in_song(id)
     }
 
     pub fn get_instr_as_any(&mut self) -> &mut dyn Any {
         self.instrument.as_any()
+    }
+
+    pub(crate) fn add_pitch_bend(&mut self, id: GenId) {
+        self.pitch_bend_id = Some(id)
+    }
+
+    pub(crate) fn add_ch_after_touch(&mut self, id: GenId) {
+        self.after_touch_id = Some(id)
+    }
+
+    pub(crate) fn set_id(&mut self, id: u8) {
+        self.id = Some(id);
+        // self.effects.set_id(id); TODO
+        self.instrument.set_id(id);
     }
 }
 

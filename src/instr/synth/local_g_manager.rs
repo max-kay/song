@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     ctrl_f::{Constant, Envelope, GenId, Lfo, PointDefined, SaveId},
@@ -15,7 +15,6 @@ pub struct LocalGManager {
     lfo_1: GenId,
     lfo_2: GenId,
     velocity: GenId,
-    pitch_wheel: GenId,
     mod_wheel: GenId,
 }
 
@@ -68,7 +67,6 @@ impl LocalGManager {
         self.lfo_2 = manager.add_generator(Lfo::w_default(), instr)?;
         self.velocity = manager.add_generator(Constant::w_default(), track)?;
         self.mod_wheel = manager.add_generator(PointDefined::w_default(), track)?;
-        self.pitch_wheel = manager.add_generator(PointDefined::w_default(), track)?;
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{ctrl_f::GenId, globals::GENRATOR_MANAGER, time::TimeStamp, utils, Error};
 
@@ -113,8 +113,7 @@ impl Network {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Transform {
     Linear,
 }
@@ -217,4 +216,18 @@ impl Reciever {
             Some(net) => net.get_val(time),
         })
     }
+}
+
+pub fn vec_or_none(
+    vec: Option<Vec<f64>>,
+    len: usize,
+    std_reciever: Reciever,
+) -> Result<Vec<Reciever>, Error> {
+    let mut out = vec![std_reciever; len];
+    if let Some(vec) = vec {
+        for (r, val) in out.iter_mut().zip(vec) {
+            r.set_value(val)?;
+        }
+    }
+    Ok(out)
 }

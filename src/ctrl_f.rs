@@ -13,10 +13,9 @@ pub use constant::Constant;
 pub use envelope::Envelope;
 pub use lfo::Lfo;
 pub use point_defined::PointDefined;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GenId {
     Unbound,
     Global(u8),
@@ -41,8 +40,7 @@ impl Default for GenId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SaveId {
     Unbound,
     Global,
@@ -132,7 +130,7 @@ impl Generator {
     }
 }
 
-#[derive(Debug, Clone,  Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratorSave {
     id: SaveId,
     map: HashMap<u8, Generator>,
@@ -162,6 +160,17 @@ impl GeneratorSave {
             }
         }
         Err(Error::Overflow)
+    }
+
+    pub fn add_generator_with_key(&mut self, mut gen: Generator, key: u8) -> Result<(), Error> {
+        match self.map.entry(key) {
+            Entry::Occupied(_) => Err(Error::Overwrite),
+            Entry::Vacant(e) => {
+                gen.set_id(self.id.add_key(key)?);
+                e.insert(gen);
+                Ok(())
+            }
+        }
     }
 }
 
@@ -203,6 +212,8 @@ impl GeneratorSave {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackGManager {
     pub track_id: u8,
+    pub track_pitchbend: PointDefined,
+    pub channel_after_touch: Option<PointDefined>,
     pub track: GeneratorSave,
     pub instr: GeneratorSave,
 }
@@ -211,6 +222,8 @@ impl TrackGManager {
     pub fn new(id: u8) -> Self {
         Self {
             track_id: id,
+            track_pitchbend: PointDefined::new_val(0.5).unwrap(),
+            channel_after_touch: None,
             track: GeneratorSave::new(SaveId::Track(id)),
             instr: GeneratorSave::new(SaveId::Instr(id)),
         }
@@ -319,5 +332,16 @@ impl GeneratorManager {
     pub fn add_generator(&mut self, gen: Generator, id: SaveId) -> Result<GenId, Error> {
         let save = self.get_mut(id)?;
         id.add_key(save.add_generator(gen)?)
+    }
+
+    pub fn add_generator_with_key(
+        &mut self,
+        gen: Generator,
+        id: SaveId,
+        key: u8,
+    ) -> Result<(), Error> {
+        let save = self.get_mut(id)?;
+        save.add_generator_with_key(gen, key)?;
+        Ok(())
     }
 }

@@ -8,6 +8,7 @@ use crate::{
     wave::Wave,
     Error,
 };
+use serde::{Deserialize, Serialize};
 use std::{any::Any, path::Path};
 
 pub mod local_g_manager;
@@ -15,10 +16,8 @@ pub mod osc_panel;
 
 pub use local_g_manager::LocalGManager;
 pub use osc_panel::OscPanel;
-use serde::{Serialize, Deserialize};
 
 const PITCH_RECIEVER: Reciever = Reciever::new(0.0, (-4800.0, 4800.0), Transform::Linear);
-const MOD_RECIEVER: Reciever = Reciever::new(0.5, (0.0, 1.0), Transform::Linear);
 const VOL_CTRL_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +28,6 @@ pub struct Synthesizer {
     pub oscillators: OscPanel,
     pub local_g_manager: LocalGManager,
     pub pitch_reciever: Reciever,
-    pub modulation_reciever: Reciever,
     pub volume_reciever: Reciever,
 }
 
@@ -41,7 +39,6 @@ impl Synthesizer {
             effects: EffectPanel::EmptyLeaf,
             local_g_manager: LocalGManager::new(),
             pitch_reciever: PITCH_RECIEVER,
-            modulation_reciever: MOD_RECIEVER,
             volume_reciever: VOL_CTRL_RECIEVER,
             oscillators: OscPanel::default(),
         }
@@ -65,10 +62,7 @@ impl Synthesizer {
             .map(|x| freq * 2_f64.powf(x / 1200.0))
             .collect();
 
-        let modulation = self.modulation_reciever.get_vec(note_on, envelope.len());
-        let mut wave = self
-            .oscillators
-            .play(freq, modulation, note_on, envelope.len());
+        let mut wave = self.oscillators.play(freq, note_on, envelope.len());
         wave.scale_by_vec(self.volume_reciever.get_vec(note_on, envelope.len()));
         wave.scale_by_vec(envelope);
         self.effects.apply_to(&mut wave, note_on);
@@ -102,6 +96,11 @@ impl MidiInstrument for Synthesizer {
     fn as_any(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn set_id(&mut self, id: u8) {
+        self.id = Some(id);
+        // self.effects.set_id(id) TODO
+    }
 }
 
 impl Synthesizer {
@@ -118,7 +117,6 @@ impl Synthesizer {
     pub fn save_test_chord(&self) {
         let wave = self.play_test_chord();
         let path = format!("out/synthtest/{}_chord.wav", self.name);
-        let path = Path::new(&path);
-        wave.save(path);
+        wave.save(Path::new(&path));
     }
 }

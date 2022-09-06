@@ -5,7 +5,7 @@ use crate::{wave::Wave, Error};
 pub mod midi;
 
 pub use midi::MidiTrack;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Track {

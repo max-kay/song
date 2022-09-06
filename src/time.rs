@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::utils::{samples_to_seconds, seconds_to_samples};
 
@@ -37,6 +37,13 @@ impl Default for TimeManager {
             beats_per_seconds: 2.0,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TimeSignature {
+    pub beats_per_bar: u8,
+    pub subdivision: Option<Vec<u8>>,
+    pub beat_value: u8,
 }
 
 impl TimeManager {
@@ -110,8 +117,7 @@ impl TimeManager {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeStamp {
     bar: u16,
     beat: u16,

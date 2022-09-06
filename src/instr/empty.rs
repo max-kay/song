@@ -1,12 +1,13 @@
 use std::any::Any;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::{midi, MidiInstrument};
 use crate::{wave::Wave, Error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmptyInstrument;
+
 impl EmptyInstrument {
     pub fn new() -> Self {
         EmptyInstrument
@@ -36,4 +37,6 @@ impl MidiInstrument for EmptyInstrument {
     fn as_any(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn set_id(&mut self, _id: u8) {}
 }

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     network::{Reciever, Transform},
@@ -6,7 +6,7 @@ use crate::{
     wave::Wave,
 };
 
-use super::{ Effect};
+use super::Effect;
 
 const VOL_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
 

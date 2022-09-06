@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{globals::TIME_MANAGER, time::TimeStamp, utils};
+use crate::{globals::TIME_MANAGER, time::TimeStamp, utils, Error};
 use std::cmp::Ordering;
 
 use super::{GenId, Generator};
@@ -12,12 +12,11 @@ pub struct AutomationPoint {
 }
 
 impl AutomationPoint {
-    pub fn new(value: f64, time: TimeStamp) -> Self {
-        assert!(
-            (0.0..=1.0).contains(&value),
-            "the value of an AutomationPoint has to in [0.0, 1.0] (closed interval)"
-        );
-        Self { value, time }
+    pub fn new(value: f64, time: TimeStamp) -> Result<Self, Error> {
+        if !(0.0..=1.0).contains(&value) {
+            return Err(Error::Value);
+        }
+        Ok(Self { value, time })
     }
     pub fn get_val(&self) -> f64 {
         self.value
@@ -30,7 +29,7 @@ impl AutomationPoint {
 impl Default for AutomationPoint {
     fn default() -> Self {
         Self {
-            value: Default::default(),
+            value: 0.0,
             time: TimeStamp::zero(),
         }
     }
@@ -61,11 +60,10 @@ impl Ord for AutomationPoint {
     }
 }
 
-#[derive(Clone, Copy)]
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum Interpolation {
-    Step,
     #[default]
+    Step,
     Linear,
     Smooth,
 }
@@ -80,7 +78,7 @@ impl Interpolation {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PointDefined {
     id: GenId,
     points: Vec<AutomationPoint>,
@@ -100,6 +98,21 @@ impl PointDefined {
 
     pub fn w_default() -> Generator {
         Generator::PointDefined(Self::default())
+    }
+
+    pub fn new_val(val: f64) -> Result<Self, Error> {
+        Ok(Self {
+            id: GenId::Unbound,
+            points: vec![AutomationPoint::new(
+                val,
+                TIME_MANAGER.read().unwrap().zero(),
+            )?],
+            interpolation: Default::default(),
+        })
+    }
+
+    pub fn w_val(val: f64) -> Result<Generator, Error> {
+        Ok(Generator::PointDefined(Self::new_val(val)?))
     }
 
     pub(crate) fn set_id(&mut self, id: GenId) {
@@ -128,13 +141,6 @@ impl PointDefined {
             .duration_to_seconds(p1.get_time(), time);
         (val1, val2, part_secs / tot_secs)
     }
-
-    pub fn one_point(val: f64) -> Self {
-        Self::new(
-            vec![AutomationPoint::new(val, TimeStamp::zero())],
-            Interpolation::Linear,
-        )
-    }
 }
 
 impl PointDefined {
@@ -150,5 +156,14 @@ impl PointDefined {
             out.push(self.get_val(t))
         }
         out
+    }
+}
+impl Default for PointDefined {
+    fn default() -> Self {
+        Self {
+            id: GenId::Unbound,
+            points: vec![AutomationPoint::default()],
+            interpolation: Default::default(),
+        }
     }
 }
