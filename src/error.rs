@@ -4,13 +4,14 @@ use std::fmt::Display;
 pub enum Error {
     Loop,
     Type,
-    Existance,
+    Existence,
+    SaveExistence,
     Overwrite,
     Unbound,
     Overflow,
-    Reciever,
-    Unintialised,
-    RecieverMisMatch,
+    Receiver,
+    Uninitialized,
+    ReceiverMisMatch,
     Value,
     Parse,
 }
@@ -26,12 +27,12 @@ impl std::error::Error for Error {}
 // #[derive(Debug)]
 // enum ErrorKind {
 //     Range {
-//         value: f64,
-//         range: (f64, f64),
+//         value: f32,
+//         range: (f32, f32),
 //     },
 //     RangeMismatch {
-//         trg_range: (f64, f64),
-//         src_range: (f64, f64),
+//         trg_range: (f32, f32),
+//         src_range: (f32, f32),
 //     },
 //     CircRef {
 //         id: usize,
@@ -54,7 +55,7 @@ impl std::error::Error for Error {}
 // }
 
 // impl ControlError {
-//     pub fn new_range_err(value: f64, range: (f64, f64)) -> Self {
+//     pub fn new_range_err(value: f32, range: (f32, f32)) -> Self {
 //         Self {
 //             path: Vec::new(),
 //             origin: String::new(),
@@ -63,7 +64,7 @@ impl std::error::Error for Error {}
 //         }
 //     }
 
-//     pub fn new_range_mismatch_err(trg_range: (f64, f64), src_range: (f64, f64)) -> Self {
+//     pub fn new_range_mismatch_err(trg_range: (f32, f32), src_range: (f32, f32)) -> Self {
 //         Self {
 //             path: Vec::new(),
 //             origin: String::new(),

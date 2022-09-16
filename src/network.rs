@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{ctrl_f::GenId, globals::GENRATOR_MANAGER, time::TimeStamp, utils, Error};
+use crate::{gens::GenId, globals::GENRATOR_MANAGER, time::ClockTick, utils, Error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Network {
     Leaf(GenId),
-    WeightedAverage(Vec<(f64, Network)>),
-    WeightedProduct(Vec<(f64, Network)>),
+    WeightedAverage(Vec<(f32, Network)>),
+    WeightedProduct(Vec<(f32, Network)>),
     Inverted(Box<Network>),
 }
 
@@ -35,10 +35,58 @@ impl Network {
             Network::Inverted(net) => net.get_ids(),
         }
     }
+
+    pub fn extract(&self) -> Option<Self> {
+        match self {
+            Network::Leaf(id) => {
+                if let Ok(new_id) = id.extract() {
+                    Some(Self::Leaf(new_id))
+                } else {
+                    None
+                }
+            }
+            Network::WeightedAverage(vec) => {
+                let new_vec: Vec<_> = vec
+                    .iter()
+                    .filter_map(|(w, net)| Some((*w, net.extract()?)))
+                    .collect();
+                if !new_vec.is_empty() {
+                    Some(Self::WeightedAverage(new_vec))
+                } else {
+                    None
+                }
+            }
+            Network::WeightedProduct(vec) => {
+                let new_vec: Vec<_> = vec
+                    .iter()
+                    .filter_map(|(w, net)| Some((*w, net.extract()?)))
+                    .collect();
+                if !new_vec.is_empty() {
+                    Some(Self::WeightedProduct(new_vec))
+                } else {
+                    None
+                }
+            }
+            Network::Inverted(net) => net.extract(),
+        }
+    }
+
+    pub fn set_id(&mut self, track_id: u8) {
+        match self {
+            Network::Leaf(id) => id.set_id(track_id),
+            Network::WeightedAverage(vec) => {
+                vec.iter_mut().for_each(|(_, net)| net.set_id(track_id))
+            }
+            Network::WeightedProduct(vec) => {
+                vec.iter_mut().for_each(|(_, net)| net.set_id(track_id))
+            }
+            Network::Inverted(net) => net.set_id(track_id),
+        }
+    }
 }
 
 impl Network {
-    pub fn get_val(&self, time: TimeStamp) -> f64 {
+    pub fn get_val(&self, time: ClockTick) -> f32 {
         match self {
             Network::Leaf(id) => GENRATOR_MANAGER
                 .read()
@@ -67,7 +115,7 @@ impl Network {
         }
     }
 
-    pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
+    pub fn get_vec(&self, start: ClockTick, samples: usize) -> Vec<f32> {
         match self {
             Network::Leaf(id) => GENRATOR_MANAGER
                 .read()
@@ -75,17 +123,16 @@ impl Network {
                 .get_vec(*id, start, samples)
                 .expect("error in network"),
             Network::WeightedAverage(vec) => {
-                let mut out = Vec::new();
+                let mut out = Vec::with_capacity(samples);
                 let mut sum = 0.0;
                 for (weight, net) in vec {
                     sum += weight;
-                    utils::add_elementwise(
-                        &mut out,
-                        net.get_vec(start, samples)
-                            .into_iter()
-                            .map(|x| x * weight)
-                            .collect(),
-                    );
+                    let part: Vec<f32> = net
+                        .get_vec(start, samples)
+                        .into_iter()
+                        .map(|x| x * weight)
+                        .collect();
+                    utils::add_elementwise(&mut out, &part);
                 }
                 out.into_iter().map(|x| x / sum).collect()
             }
@@ -94,13 +141,12 @@ impl Network {
                 let mut sum = 0.0;
                 for (weight, net) in vec {
                     sum += weight;
-                    utils::mul_elementwise(
-                        &mut out,
-                        net.get_vec(start, samples)
-                            .into_iter()
-                            .map(|x| x.powf(*weight))
-                            .collect(),
-                    )
+                    let part: Vec<f32> = net
+                        .get_vec(start, samples)
+                        .into_iter()
+                        .map(|x| x.powf(*weight))
+                        .collect();
+                    utils::mul_elementwise(&mut out, &part)
                 }
                 out.into_iter().map(|x| x.powf(1.0 / sum)).collect()
             }
@@ -119,23 +165,23 @@ pub enum Transform {
 }
 
 impl Transform {
-    pub fn get_fn(&self, range: (f64, f64)) -> Box<dyn Fn(f64) -> f64> {
+    pub fn get_fn(&self, range: (f32, f32)) -> Box<dyn Fn(f32) -> f32> {
         match self {
-            Transform::Linear => Box::new(move |x: f64| x * (range.1 - range.0) + range.0),
+            Transform::Linear => Box::new(move |x: f32| x * (range.1 - range.0) + range.0),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Reciever {
-    value: f64,
-    range: (f64, f64),
+pub struct Receiver {
+    value: f32,
+    range: (f32, f32),
     transform: Transform,
     network: Option<Network>,
 }
 
-impl Reciever {
-    pub const fn new(value: f64, range: (f64, f64), transform: Transform) -> Self {
+impl Receiver {
+    pub const fn new(value: f32, range: (f32, f32), transform: Transform) -> Self {
         Self {
             value,
             range,
@@ -143,28 +189,31 @@ impl Reciever {
             transform,
         }
     }
-    pub fn set_value(&mut self, value: f64) -> Result<(), Error> {
+
+    pub fn set_value(&mut self, value: f32) -> Result<(), Error> {
         if in_range(value, self.range) {
             self.value = value;
             Ok(())
         } else {
-            Err(Error::Reciever)
+            Err(Error::Receiver)
         }
     }
-    pub(crate) fn sv(mut self, val: f64) -> Self {
+
+    pub(crate) fn sv(mut self, val: f32) -> Self {
         self.value = val;
         self
     }
-    pub(crate) fn csv(mut self, val: f64) -> Result<Self, Error> {
+
+    pub(crate) fn csv(mut self, val: f32) -> Result<Self, Error> {
         if in_range(val, self.range) {
             self.value = val;
             Ok(self)
         } else {
-            Err(Error::Reciever)
+            Err(Error::Receiver)
         }
     }
 
-    pub fn compare(&self, other: &Reciever) -> bool {
+    pub fn compare(&self, other: &Receiver) -> bool {
         self.range == other.range && self.transform == other.transform
     }
 
@@ -174,15 +223,35 @@ impl Reciever {
             None => Vec::new(),
         }
     }
+
+    pub fn extract(&self) -> Self {
+        let network = if let Some(net) = &self.network {
+            net.extract()
+        } else {
+            None
+        };
+        Self {
+            value: self.value,
+            range: self.range,
+            transform: self.transform,
+            network,
+        }
+    }
+
+    pub fn set_id(&mut self, track_id: u8) {
+        if let Some(net) = &mut self.network {
+            net.set_id(track_id)
+        }
+    }
 }
 
-pub fn set_reciever(
-    target: &mut Reciever,
+pub fn set_receiver(
+    target: &mut Receiver,
     target_id: GenId,
-    source: &Reciever,
+    source: &Receiver,
 ) -> Result<(), Error> {
     if !target.compare(source) {
-        return Err(Error::RecieverMisMatch);
+        return Err(Error::ReceiverMisMatch);
     }
     if !source.get_ids().contains(&target_id) {
         target.value = source.value;
@@ -194,14 +263,14 @@ pub fn set_reciever(
 }
 
 #[inline(always)]
-fn in_range(val: f64, range: (f64, f64)) -> bool {
+fn in_range(val: f32, range: (f32, f32)) -> bool {
     (val >= range.0 && val <= range.1) | (val >= range.1 && val <= range.0)
 }
 
-impl Reciever {
-    pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
+impl Receiver {
+    pub fn get_vec(&self, start: ClockTick, samples: usize) -> Vec<f32> {
         match &self.network {
-            None => vec![self.transform.get_fn(self.range)(self.value); samples],
+            None => vec![self.value; samples],
             Some(net) => net
                 .get_vec(start, samples)
                 .into_iter()
@@ -210,20 +279,20 @@ impl Reciever {
         }
     }
 
-    pub fn get_val(&self, time: TimeStamp) -> f64 {
-        self.transform.get_fn(self.range)(match &self.network {
+    pub fn get_val(&self, time: ClockTick) -> f32 {
+        match &self.network {
             None => self.value,
-            Some(net) => net.get_val(time),
-        })
+            Some(net) => self.transform.get_fn(self.range)(net.get_val(time)),
+        }
     }
 }
 
 pub fn vec_or_none(
-    vec: Option<Vec<f64>>,
+    vec: Option<Vec<f32>>,
     len: usize,
-    std_reciever: Reciever,
-) -> Result<Vec<Reciever>, Error> {
-    let mut out = vec![std_reciever; len];
+    std_receiver: Receiver,
+) -> Result<Vec<Receiver>, Error> {
+    let mut out = vec![std_receiver; len];
     if let Some(vec) = vec {
         for (r, val) in out.iter_mut().zip(vec) {
             r.set_value(val)?;

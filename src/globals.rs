@@ -2,7 +2,7 @@ use std::sync::RwLock;
 
 use once_cell::sync::Lazy;
 
-use crate::{ctrl_f::GeneratorManager, time::TimeManager};
+use crate::{gens::GeneratorManager, time::TimeManager};
 
 pub const SAMPLE_RATE: usize = 44100;
 

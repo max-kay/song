@@ -1,13 +1,13 @@
 #![warn(missing_debug_implementations)]
 
-use std::{any::Any, collections::HashMap, u8};
-
+use io::data::SongBuilder;
+use std::{collections::HashMap, fs::File, path::Path, u8};
 use tracks::{MidiTrack, Track};
 use wave::Wave;
 
-pub mod ctrl_f;
 pub mod effects;
 pub mod error;
+pub mod gens;
 pub mod globals;
 pub mod instr;
 pub mod io;
@@ -36,35 +36,39 @@ impl Song {
         }
     }
 
-    pub fn add_midi_track(&mut self, mut track: MidiTrack) -> Result<(), Error> {
-        for i in 0..=u8::MAX {
-            if let std::collections::hash_map::Entry::Vacant(e) = self.tracks.entry(i) {
-                match track.put_in_song(i) {
-                    Ok(_) => (),
-                    Err(err) => match err {
-                        Error::Overwrite => continue,
-                        _ => todo!(),
-                    },
-                };
-                e.insert(Track::Midi(track));
-                return Ok(());
-            }
-        }
-        Err(Error::Overflow)
-    }
-
-    pub fn get_instr_as_any(&mut self, track_id: u8) -> &mut dyn Any {
-        match self.tracks.get_mut(&track_id) {
-            Some(track) => track.get_instr_as_any(),
-            None => todo!(),
-        }
-    }
-
     pub fn get_wave(&self) -> Wave {
         let mut wave = Wave::new();
         for track in self.tracks.values() {
-            wave.add_consuming(track.play(), 0);
+            wave.add(&track.play(), 0);
         }
         wave
+    }
+
+    pub fn mut_midi_tracks(&mut self) -> Vec<&mut MidiTrack> {
+        let mut out = Vec::new();
+        for track in self.tracks.values_mut() {
+            match track {
+                Track::Midi(track) => out.push(track),
+            }
+        }
+        out
+    }
+}
+
+impl Song {
+    pub fn save_to(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+        let data: SongBuilder = self.into();
+        let file = File::create(path)?;
+        ron::ser::to_writer_pretty(file, &data, Default::default())?;
+        // serde_json::to_writer_pretty(file, &data)?;
+        Ok(())
+    }
+
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
+        SongBuilder::from_path(path).map(|data| data.into())
+    }
+
+    pub fn from_midi(path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
+        SongBuilder::from_midi(path).map(|data| data.into())
     }
 }

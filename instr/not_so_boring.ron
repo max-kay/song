@@ -1,0 +1,189 @@
+(
+    name: "boring",
+    effects: EmptyLeaf,
+    oscillators: (
+        oscillators: [
+            Sine,
+            ModSaw,
+            ModSquare,
+        ],
+        modulation: [
+            (
+                value: 0.5,
+                range: (0.0, 1.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.2,
+                range: (0.0, 1.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.5,
+                range: (0.0, 1.0),
+                transform: Linear,
+                network: None,
+            ),
+        ],
+        weights: [
+            (
+                value: 0.3,
+                range: (0.0, 5.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.3,
+                range: (0.0, 5.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.4,
+                range: (0.0, 5.0),
+                transform: Linear,
+                network: None,
+            ),
+        ],
+        pitch_offsets: [
+            (
+                value: 0.0,
+                range: (-4800.0, 4800.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.0,
+                range: (-4800.0, 4800.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.0,
+                range: (-4800.0, 4800.0),
+                transform: Linear,
+                network: None,
+            ),
+        ],
+    ),
+    main_enevelope: InstrExtracted(
+        key: 0,
+    ),
+    alt_enevelope: InstrExtracted(
+        key: 1,
+    ),
+    lfo_1: InstrExtracted(
+        key: 2,
+    ),
+    lfo_2: InstrExtracted(
+        key: 3,
+    ),
+    pitch_receiver: (
+        value: 0.0,
+        range: (-4800.0, 4800.0),
+        transform: Linear,
+        network: None,
+    ),
+    volume_receiver: (
+        value: 1.0,
+        range: (0.0, 5.0),
+        transform: Linear,
+        network: None,
+    ),
+    instr_generator: (
+        map: {
+            2: Lfo((
+                id: Unbound,
+                oscillator: Sine,
+                freq: (
+                    value: 2.0,
+                    range: (0.001, 20.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                modulation: (
+                    value: 0.5,
+                    range: (0.0, 1.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                phase_shift: 0.0,
+            )),
+            1: Envelope((
+                id: Unbound,
+                attack: (
+                    value: 0.1,
+                    range: (0.0, 25.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                decay: (
+                    value: 0.15,
+                    range: (0.0, 25.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                sustain: (
+                    value: 0.8,
+                    range: (0.0, 1.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                half_life: None,
+                release: (
+                    value: 0.6,
+                    range: (0.0, 25.0),
+                    transform: Linear,
+                    network: None,
+                ),
+            )),
+            3: Lfo((
+                id: Unbound,
+                oscillator: Sine,
+                freq: (
+                    value: 2.0,
+                    range: (0.001, 20.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                modulation: (
+                    value: 0.5,
+                    range: (0.0, 1.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                phase_shift: 0.0,
+            )),
+            0: Envelope((
+                id: Unbound,
+                attack: (
+                    value: 0.02,
+                    range: (0.0, 25.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                decay: (
+                    value: 0.02,
+                    range: (0.0, 25.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                sustain: (
+                    value: 0.8,
+                    range: (0.0, 1.0),
+                    transform: Linear,
+                    network: None,
+                ),
+                half_life: None,
+                release: (
+                    value: 0.01,
+                    range: (0.0, 25.0),
+                    transform: Linear,
+                    network: None,
+                ),
+            )),
+        },
+    ),
+)

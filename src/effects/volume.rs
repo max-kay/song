@@ -1,25 +1,23 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    network::{Reciever, Transform},
-    time::TimeStamp,
+    network::{Receiver, Transform},
+    time::ClockTick,
     wave::Wave,
 };
 
-use super::Effect;
-
-const VOL_RECIEVER: Reciever = Reciever::new(1.0, (0.0, 5.0), Transform::Linear);
+const VOL_RECEIVER: Receiver = Receiver::new(1.0, (0.0, 5.0), Transform::Linear);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Volume {
-    volume: Reciever,
+    volume: Receiver,
     on: bool,
 }
 
 impl Volume {
     pub fn new() -> Self {
         Self {
-            volume: VOL_RECIEVER,
+            volume: VOL_RECEIVER,
             on: true,
         }
     }
@@ -31,27 +29,40 @@ impl Default for Volume {
     }
 }
 
-impl Effect for Volume {
-    fn apply(&self, wave: &mut Wave, time_triggered: TimeStamp) {
+impl Volume {
+    pub fn apply(&self, wave: &mut Wave, time_triggered: ClockTick) {
         if self.on {
             let vol = self.volume.get_vec(time_triggered, wave.len());
             wave.scale_by_vec(vol)
         }
     }
 
-    fn set_defaults(&mut self) {
-        self.volume = VOL_RECIEVER
+    pub fn set_defaults(&mut self) {
+        self.volume = VOL_RECEIVER
     }
 
-    fn on(&mut self) {
+    pub fn on(&mut self) {
         self.on = true
     }
 
-    fn off(&mut self) {
+    pub fn off(&mut self) {
         self.on = false
     }
 
-    fn toggle(&mut self) {
+    pub fn toggle(&mut self) {
         self.on = !self.on
+    }
+}
+
+impl Volume {
+    pub fn extract(&self) -> Self {
+        Self {
+            volume: self.volume.extract(),
+            on: self.on,
+        }
+    }
+
+    pub fn set_id(&mut self, track_id: u8) {
+        self.volume.set_id(track_id)
     }
 }

@@ -1,26 +1,26 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ctrl_f::Error,
+    gens::Error,
     globals::{SAMPLE_RATE, TIME_MANAGER},
-    network::{self, Reciever, Transform},
-    time::TimeStamp,
+    network::{self, Receiver, Transform},
+    time::ClockTick,
     utils::oscs::Oscillator,
 };
-use std::f64::consts::TAU;
+use std::f32::consts::TAU;
 
 use super::{GenId, Generator};
 
-const FREQ_RECIEVER: Reciever = Reciever::new(2.0, (0.001, 20.0), Transform::Linear);
-const MOD_RECIEVER: Reciever = Reciever::new(0.5, (0.0, 1.0), Transform::Linear);
+const FREQ_RECEIVER: Receiver = Receiver::new(2.0, (0.001, 20.0), Transform::Linear);
+const MOD_RECEIVER: Receiver = Receiver::new(0.5, (0.0, 1.0), Transform::Linear);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lfo {
     id: GenId,
     oscillator: Oscillator,
-    freq: Reciever,
-    modulation: Reciever,
-    phase_shift: f64,
+    freq: Receiver,
+    modulation: Receiver,
+    phase_shift: f32,
 }
 
 impl Lfo {
@@ -28,8 +28,8 @@ impl Lfo {
         Self {
             id: GenId::Unbound,
             oscillator: Oscillator::Sine,
-            freq: FREQ_RECIEVER,
-            modulation: MOD_RECIEVER,
+            freq: FREQ_RECEIVER,
+            modulation: MOD_RECEIVER,
             phase_shift: 0.0,
         }
     }
@@ -58,12 +58,16 @@ impl Lfo {
         Ok(())
     }
 
-    pub fn set_freq(&mut self, freq: &Reciever) -> Result<(), Error> {
-        network::set_reciever(&mut self.freq, self.id, freq)
+    pub fn set_freq(&mut self, freq: &Receiver) -> Result<(), Error> {
+        network::set_receiver(&mut self.freq, self.id, freq)
     }
 
-    pub fn set_modulation(&mut self, modulation: &Reciever) -> Result<(), Error> {
-        network::set_reciever(&mut self.modulation, self.id, modulation)
+    pub fn set_modulation(&mut self, modulation: &Receiver) -> Result<(), Error> {
+        network::set_receiver(&mut self.modulation, self.id, modulation)
+    }
+
+    pub fn wrap(self) -> Generator {
+        Generator::Lfo(self)
     }
 }
 
@@ -74,10 +78,10 @@ impl Default for Lfo {
 }
 
 impl Lfo {
-    pub fn get_val(&self, time: TimeStamp) -> f64 {
+    pub fn get_val(&self, time: ClockTick) -> f32 {
         let phase =
-            ((TIME_MANAGER.read().unwrap().stamp_to_seconds(time) * TAU * self.freq.get_val(time)
-                / (SAMPLE_RATE as f64))
+            ((TIME_MANAGER.read().unwrap().tick_to_second(time) * TAU * self.freq.get_val(time)
+                / (SAMPLE_RATE as f32))
                 + self.phase_shift)
                 % TAU;
         (self
@@ -87,7 +91,7 @@ impl Lfo {
             / 2.0
     }
 
-    pub fn get_vec(&self, start: TimeStamp, samples: usize) -> Vec<f64> {
+    pub fn get_vec(&self, start: ClockTick, samples: usize) -> Vec<f32> {
         self.oscillator
             .play_shifted(
                 &self.freq.get_vec(start, samples),

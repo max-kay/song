@@ -5,10 +5,14 @@ use super::{GenId, Generator};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Constant {
     id: GenId,
-    val: f64,
+    val: f32,
 }
 
 impl Constant {
+    pub fn wrap(self) -> Generator {
+        Generator::Constant(self)
+    }
+
     pub fn w_default() -> Generator {
         Generator::Constant(Self::default())
     }
@@ -28,18 +32,18 @@ impl Constant {
         self.id = id
     }
 
-    pub fn set(&mut self, value: f64) {
+    pub fn set(&mut self, value: f32) {
         assert!((0.0..=1.0).contains(&value));
         self.val = value
     }
 }
 
 impl Constant {
-    pub fn get_val(&self) -> f64 {
+    pub fn get_val(&self) -> f32 {
         self.val
     }
 
-    pub fn get_vec(&self, samples: usize) -> Vec<f64> {
+    pub fn get_vec(&self, samples: usize) -> Vec<f32> {
         vec![self.val; samples]
     }
 }

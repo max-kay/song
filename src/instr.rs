@@ -1,21 +1,58 @@
-use std::{any::Any, fmt::Debug};
-
-use crate::{tracks::midi, wave::Wave, Error};
-use dyn_clone::DynClone;
-use serde_traitobject as ser_tr;
-
-pub mod empty;
-pub mod synth;
-pub use empty::EmptyInstrument;
+use crate::{tracks::midi, wave::Wave};
+use serde::{Deserialize, Serialize};
+use std::{fs::File, path::Path};
 pub use synth::Synthesizer;
+pub mod synth;
 
-pub trait MidiInstrument: Debug + ser_tr::Serialize + ser_tr::Deserialize + DynClone {
-    fn play_note(&self, note: midi::Note) -> Wave;
-    fn play_notes(&self, note: &[midi::Note]) -> Wave;
-    fn name(&self) -> &str;
-    fn put_in_song(&mut self, id: u8) -> Result<(), Error>;
-    fn as_any(&mut self) -> &mut dyn Any;
-    fn set_id(&mut self, id: u8);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MidiInstrument {
+    Synthesizer(Box<Synthesizer>),
+    Empty { name: String },
 }
 
-dyn_clone::clone_trait_object!(MidiInstrument);
+impl MidiInstrument {
+    pub fn empty() -> Self {
+        Self::Empty {
+            name: "".to_string(),
+        }
+    }
+
+    pub fn named_empty(name: &str) -> Self {
+        Self::Empty {
+            name: name.to_string(),
+        }
+    }
+
+    pub fn play_note(&self, note: midi::Note) -> Wave {
+        match self {
+            MidiInstrument::Synthesizer(synth) => synth.play_note(note),
+            MidiInstrument::Empty { name: _ } => Wave::new(),
+        }
+    }
+
+    pub fn play_notes(&self, notes: &[midi::Note]) -> Wave {
+        match self {
+            MidiInstrument::Synthesizer(synth) => synth.play_notes(notes),
+            MidiInstrument::Empty { name: _ } => Wave::new(),
+        }
+    }
+
+    pub fn name(&self) -> String {
+        match self {
+            MidiInstrument::Synthesizer(synth) => synth.name(),
+            MidiInstrument::Empty { name } => name.clone(),
+        }
+    }
+
+    pub fn save_to(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+        match self {
+            MidiInstrument::Synthesizer(synth) => {
+                let data = synth.extract();
+                let file = File::create(path)?;
+                ron::ser::to_writer_pretty(file, &data, Default::default())?;
+                Ok(())
+            }
+            MidiInstrument::Empty { name: _ } => todo!(),
+        }
+    }
+}

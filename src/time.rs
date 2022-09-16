@@ -1,149 +1,118 @@
+use derive_more::{Add, Sub};
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{samples_to_seconds, seconds_to_samples};
+use crate::{
+    io::TimeDecoder,
+    utils::{self, XYPairs},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeManager {
-    pub ticks_per_beat: u16,
-    pub beats_per_bar: u16,
-    pub beat_value: u16,
-    pub beats_per_seconds: f64,
+    s_per_tick: XYPairs<ClockTick, f32>,
 }
 
-impl TimeManager {
-    pub fn set_ticks_per_beat(&mut self, value: u16) {
-        self.ticks_per_beat = value
-    }
-    pub fn set_beats_per_bar(&mut self, value: u16) {
-        self.beats_per_bar = value
-    }
-    pub fn set_beat_value(&mut self, value: u16) {
-        self.beat_value = value
-    }
-    pub fn set_bpm(&mut self, value: f64) {
-        self.beats_per_seconds = value / 60.0
-    }
-    pub fn get_bpm(&self) -> f64 {
-        self.beats_per_seconds * 60.0
-    }
+// signatures: XYPairs<ClockTick, Signature>, // stamp musical interpretation conversion
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Signature {
+    ticks_per_beat: u32,
+    beats_per_bar: u8,
+    beat_value: u8,
+    subdivision: Option<SubDiv>,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+struct SubDiv {
+    arr: [u8; 20],
 }
 
 impl Default for TimeManager {
     fn default() -> Self {
         Self {
-            ticks_per_beat: 120,
-            beats_per_bar: 4,
-            beat_value: 4,
-            beats_per_seconds: 2.0,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TimeSignature {
-    pub beats_per_bar: u8,
-    pub subdivision: Option<Vec<u8>>,
-    pub beat_value: u8,
-}
-
-impl TimeManager {
-    fn stamp_to_ticks(&self, stamp: TimeStamp) -> u16 {
-        stamp.tick + (stamp.beat + stamp.bar * self.beats_per_bar) * self.ticks_per_beat
-    }
-
-    fn ticks_to_stamp(&self, ticks: u16) -> TimeStamp {
-        TimeStamp {
-            bar: ticks / (self.ticks_per_beat * self.beats_per_bar),
-            beat: (ticks / self.ticks_per_beat) % self.beats_per_bar,
-            tick: ticks % (self.ticks_per_beat * self.beats_per_bar),
-        }
-    }
-
-    fn ticks_to_seconds(&self, ticks: u16) -> f64 {
-        (ticks as f64 / self.ticks_per_beat as f64) / self.beats_per_seconds as f64
-    }
-
-    fn seconds_to_ticks(&self, seconds: f64) -> u16 {
-        (seconds * (self.beats_per_seconds * self.ticks_per_beat as f64)) as u16
+            s_per_tick: XYPairs::from_point(ClockTick::abs_zero(), 0.00001),
+        } // TODO better value
     }
 }
 
 impl TimeManager {
-    pub fn stamp_to_seconds(&self, time_stamp: TimeStamp) -> f64 {
-        self.ticks_to_seconds(self.stamp_to_ticks(time_stamp))
-    }
-
-    pub fn stamp_to_samples(&self, time_stamp: TimeStamp) -> usize {
-        seconds_to_samples(self.stamp_to_seconds(time_stamp))
-    }
-
-    pub fn seconds_to_stamp(&self, seconds: f64) -> TimeStamp {
-        self.ticks_to_stamp(self.seconds_to_ticks(seconds))
-    }
-}
-
-impl TimeManager {
-    pub fn zero(&self) -> TimeStamp {
-        TimeStamp {
-            bar: 0,
-            beat: 0,
-            tick: 0,
+    pub fn tick_to_second(&self, tick: ClockTick) -> f32 {
+        let (start_ticks, tempos) = self.s_per_tick.upto(tick);
+        let mut sum = 0.0;
+        for i in 0..(start_ticks.len() - 1) {
+            sum += (start_ticks[i + 1] - start_ticks[i]).f32() * tempos[i]
         }
-    }
-}
-
-impl TimeManager {
-    pub fn add_seconds_to_stamp(&self, time_stamp: TimeStamp, seconds: f64) -> TimeStamp {
-        self.seconds_to_stamp(seconds + self.stamp_to_seconds(time_stamp))
+        sum + (tick - *start_ticks.last().unwrap()).f32() * tempos.last().unwrap()
     }
 
-    pub fn duration_to_seconds(&self, t0: TimeStamp, t1: TimeStamp) -> f64 {
-        self.stamp_to_seconds(t1) - self.stamp_to_seconds(t0)
+    pub fn tick_to_sample(&self, tick: ClockTick) -> usize {
+        utils::seconds_to_samples(self.tick_to_second(tick))
     }
 
-    pub fn duration_to_samples(&self, t0: TimeStamp, t1: TimeStamp) -> usize {
-        seconds_to_samples(self.duration_to_seconds(t0, t1))
-    }
-}
-
-impl TimeManager {
-    pub fn get_stamp_vec(&self, onset: TimeStamp, samples: usize) -> Vec<TimeStamp> {
-        let onset = self.stamp_to_seconds(onset);
-        let mut out = Vec::new();
-        for i in 0..samples {
-            out.push(self.seconds_to_stamp(samples_to_seconds(i) + onset))
+    pub fn second_to_tick(&self, mut second: f32) -> ClockTick {
+        let (start_ticks, tempos) = self.s_per_tick.slices();
+        for i in 0..start_ticks.len() - 1 {
+            let section_seconds = (start_ticks[i + 1] - start_ticks[i]).f32() * tempos[i];
+            if section_seconds > second {
+                return start_ticks[i] + ClockTick((second / tempos[i]) as u32);
+            }
+            second -= section_seconds
         }
-        out
+        *start_ticks.last().unwrap() + ClockTick((second / tempos.last().unwrap()) as u32)
+    }
+
+    pub fn sample_to_tick(&self, sample: usize) -> ClockTick {
+        self.second_to_tick(utils::samples_to_seconds(sample))
+    }
+
+    pub fn duration_to_seconds(&self, start: ClockTick, end: ClockTick) -> f32 {
+        self.tick_to_second(end) - self.tick_to_second(start)
+    }
+
+    pub fn duration_to_samples(&self, start: ClockTick, end: ClockTick) -> usize {
+        utils::seconds_to_samples(self.duration_to_seconds(start, end))
+    }
+
+    pub fn add_seconds_to_stamp(&self, tick: ClockTick, seconds: f32) -> ClockTick {
+        self.second_to_tick(self.tick_to_second(tick) + seconds)
+    }
+
+    pub fn abs_start(&self) -> ClockTick {
+        ClockTick(0)
+    }
+
+    pub fn get_tick_vec(&self, tick: ClockTick, samples: usize) -> Vec<ClockTick> {
+        (0..samples)
+            .into_iter()
+            .map(|sample| self.sample_to_tick(sample) + tick)
+            .collect()
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TimeStamp {
-    bar: u16,
-    beat: u16,
-    tick: u16,
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Add, Sub, Serialize, Deserialize)]
+pub struct ClockTick(u32);
 
-impl PartialOrd for TimeStamp {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.bar.partial_cmp(&other.bar) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        match self.beat.partial_cmp(&other.beat) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.tick.partial_cmp(&other.tick)
+impl ClockTick {
+    pub(crate) fn new(tick: u32) -> Self {
+        Self(tick)
+    }
+
+    pub fn f32(&self) -> f32 {
+        self.0 as f32
+    }
+
+    pub fn abs_zero() -> Self {
+        Self(0)
     }
 }
 
-impl TimeStamp {
-    pub fn zero() -> Self {
+impl From<TimeDecoder> for TimeManager {
+    fn from(decoder: TimeDecoder) -> Self {
         Self {
-            bar: 0,
-            beat: 0,
-            tick: 0,
+            s_per_tick: decoder
+                .mus_per_beat
+                .clone()
+                .map_keys(ClockTick::new)
+                .map_values(|y| decoder.convert_mus_beat_to_s_tick(&y)),
         }
     }
 }

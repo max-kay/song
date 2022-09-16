@@ -11,8 +11,8 @@ const STD_SPEC: WavSpec = WavSpec {
 
 #[derive(Debug, Clone)]
 pub struct Wave {
-    right: Vec<f64>,
-    left: Vec<f64>,
+    right: Vec<f32>,
+    left: Vec<f32>,
 }
 
 impl Wave {
@@ -44,14 +44,14 @@ impl Wave {
         }
     }
 
-    pub fn from_vec(vec: Vec<f64>) -> Self {
+    pub fn from_vec(vec: Vec<f32>) -> Self {
         Self {
             right: vec.clone(),
             left: vec,
         }
     }
 
-    pub fn resize(&mut self, new_len: usize, value: f64) {
+    pub fn resize(&mut self, new_len: usize, value: f32) {
         self.right.resize(new_len, value);
         self.left.resize(new_len, value)
     }
@@ -82,33 +82,12 @@ impl Wave {
         }
     }
 
-    pub fn add_consuming(&mut self, other: Self, index: usize) {
-        if index == 0 && self.len() == other.len() {
-            for (e1, e2) in zip(&mut self.right, other.right.iter()) {
-                *e1 += e2;
-            }
-            for (e1, e2) in zip(&mut self.left, other.left.iter()) {
-                *e1 += e2;
-            }
-        } else {
-            if self.len() < index + other.len() {
-                self.resize(index + other.len(), 0.0)
-            }
-            for i in 0..other.len() {
-                self.right[i + index] += other.right[i];
-            }
-            for i in 0..other.len() {
-                self.left[i + index] += other.left[i];
-            }
-        }
-    }
-
-    pub fn scale(&mut self, value: f64) {
+    pub fn scale(&mut self, value: f32) {
         self.right = self.right.iter().map(|x| x * value).collect();
         self.left = self.left.iter().map(|x| x * value).collect()
     }
 
-    pub fn scale_by_vec(&mut self, vec: Vec<f64>) {
+    pub fn scale_by_vec(&mut self, vec: Vec<f32>) {
         debug_assert_eq!(self.len(), vec.len(), "error in scale_by_vec");
         for (e1, e2) in zip(&mut self.right, vec.iter()) {
             *e1 *= e2;
@@ -126,25 +105,32 @@ impl Wave {
         self.right.is_empty()
     }
 
-    pub fn normalize(&mut self) {
-        todo!()
+    pub fn rms_normalize(&mut self) {
+        let rms = ((self.left.iter().fold(0.0, |i, x| i + x * x)
+            + self.right.iter().fold(0.0, |i, x| i + x * x))
+            / (2.0 * self.len() as f32))
+            .sqrt();
+        self.right.iter_mut().for_each(|x| *x /= rms * 10.0);
+        self.left.iter_mut().for_each(|x| *x /= rms * 10.0); // TODO
     }
 
     pub fn peak_normalize(&mut self) {
         let scale = 0.9
-            / f64::max(
-                utils::max_abs_f64(&self.right),
-                utils::max_abs_f64(&self.left),
+            / f32::max(
+                utils::max_abs_f32(&self.right),
+                utils::max_abs_f32(&self.left),
             );
         self.scale(scale)
     }
 
-    pub fn save(&self, path: &Path) {
+    pub fn save(&self, path: impl AsRef<Path>) {
+        let mut wave = self.clone();
+        wave.rms_normalize();
         let mut writer =
             hound::WavWriter::create(path, STD_SPEC).expect("Error while saving wave!");
-        let mut writer_i16 = writer.get_i16_writer(self.len() as u32 * 2);
-        let right = self.right.iter().map(|x| (x * i16::MAX as f64) as i16);
-        let left = self.left.iter().map(|x| (x * i16::MAX as f64) as i16);
+        let mut writer_i16 = writer.get_i16_writer(wave.len() as u32 * 2);
+        let right = wave.right.iter().map(|x| (x * i16::MAX as f32) as i16);
+        let left = wave.left.iter().map(|x| (x * i16::MAX as f32) as i16);
         for (r, l) in zip(right, left) {
             unsafe {
                 writer_i16.write_sample_unchecked(r);
