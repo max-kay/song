@@ -1,12 +1,16 @@
-use crate::{tracks::midi, wave::Wave};
+use self::drums::Drums;
+use crate::{tracks::midi, wave::Wave, Error};
 use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 pub use synth::Synthesizer;
+
+pub mod drums;
 pub mod synth;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MidiInstrument {
     Synthesizer(Box<Synthesizer>),
+    Drums(Box<Drums>),
     Empty { name: String },
 }
 
@@ -26,6 +30,7 @@ impl MidiInstrument {
     pub fn play_note(&self, note: midi::Note) -> Wave {
         match self {
             MidiInstrument::Synthesizer(synth) => synth.play_note(note),
+            MidiInstrument::Drums(drums) => drums.play_note(note),
             MidiInstrument::Empty { name: _ } => Wave::new(),
         }
     }
@@ -33,6 +38,7 @@ impl MidiInstrument {
     pub fn play_notes(&self, notes: &[midi::Note]) -> Wave {
         match self {
             MidiInstrument::Synthesizer(synth) => synth.play_notes(notes),
+            MidiInstrument::Drums(drums) => drums.play_notes(notes),
             MidiInstrument::Empty { name: _ } => Wave::new(),
         }
     }
@@ -40,6 +46,7 @@ impl MidiInstrument {
     pub fn name(&self) -> String {
         match self {
             MidiInstrument::Synthesizer(synth) => synth.name(),
+            MidiInstrument::Drums(drums) => drums.name(),
             MidiInstrument::Empty { name } => name.clone(),
         }
     }
@@ -52,7 +59,8 @@ impl MidiInstrument {
                 ron::ser::to_writer_pretty(file, &data, Default::default())?;
                 Ok(())
             }
-            MidiInstrument::Empty { name: _ } => todo!(),
+            MidiInstrument::Drums(_drums) => todo!(),
+            MidiInstrument::Empty { name: _ } => Err(Error::Type)?,
         }
     }
 }

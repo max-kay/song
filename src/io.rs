@@ -1,5 +1,7 @@
 use self::data::{MidiTrackBuilder, SongBuilder};
-use crate::{time::ClockTick, tracks::midi, utils::XYPairs};
+use crate::{time::ClockTick, tracks::midi, utils::XYPairs, wave::Wave, globals::SAMPLE_RATE};
+use hound::{SampleFormat, WavSpec};
+use itertools::Itertools;
 use midly::{Format, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -9,6 +11,71 @@ use std::{
 };
 
 pub mod data;
+
+pub fn read_wav(path: impl AsRef<Path>) -> Result<Wave, Box<dyn std::error::Error>> {
+    let reader = hound::WavReader::open(path)?;
+    let WavSpec {
+        channels,
+        sample_rate,
+        bits_per_sample,
+        sample_format,
+    } = reader.spec();
+
+    if channels != 2 {
+        Err(crate::Error::WavRead)?
+    };
+
+    if sample_rate as usize != SAMPLE_RATE {
+        Err(crate::Error::WavRead)?
+    };
+
+    match sample_format {
+        SampleFormat::Float => match bits_per_sample {
+            0..=32 => {
+                todo!()
+            }
+            33..=64 => {
+                todo!()
+            }
+            _ => Err(crate::Error::WavRead)?,
+        },
+        SampleFormat::Int => match bits_per_sample {
+            0..=8 => {
+                todo!()
+            }
+            9..=16 => {
+                let mut right: Vec<i16> = Vec::with_capacity(reader.len() as usize / 2);
+                let mut left: Vec<i16> = Vec::with_capacity(reader.len() as usize / 2);
+                for mut chunk in &reader
+                    .into_samples::<i16>()
+                    .map(|s| s.expect("error in reading wav"))
+                    .collect::<Vec<i16>>()
+                    .into_iter()
+                    .chunks(2)
+                {
+                    left.push(chunk.next().unwrap());
+                    right.push(chunk.next().unwrap());
+                }
+                Ok(Wave::from_vecs(
+                    right
+                        .into_iter()
+                        .map(|x| x as f32 / i16::MAX as f32)
+                        .collect(),
+                    left.into_iter()
+                        .map(|x| x as f32 / i16::MAX as f32)
+                        .collect(),
+                ))
+            }
+            17..=32 => {
+                todo!()
+            }
+            33..=64 => {
+                todo!()
+            }
+            _ => Err(crate::Error::WavRead)?,
+        },
+    }
+}
 
 // what midi calls ... I call ...
 // clock -> tick
@@ -186,6 +253,7 @@ impl TimeDecoder {
     }
 }
 
+#[derive(Debug)]
 struct AlmostTrack {
     name: String,
     inst_name: String,
@@ -251,7 +319,7 @@ impl AlmostTrack {
 }
 
 impl AlmostTrack {
-    pub fn into_track(self) -> Result<MidiTrackBuilder, Box<dyn Error>> {
+    pub fn into_track(mut self) -> Result<MidiTrackBuilder, Box<dyn Error>> {
         let mut notes = Vec::new();
         assert_eq!(
             self.note_off.len(),
@@ -270,7 +338,7 @@ impl AlmostTrack {
             notes.push(midi::Note {
                 pitch: midi::Pitch::new(note_on.key).unwrap(),
                 on: ClockTick::new(note_on.tick),
-                off: ClockTick::new(self.note_off[index.unwrap()].tick),
+                off: ClockTick::new(self.note_off.remove(index.unwrap()).tick),
                 velocity: note_on.vel as f32 / 127.0,
             })
         }
@@ -314,34 +382,40 @@ impl AlmostTrack {
     }
 }
 
+#[derive(Debug)]
 struct NoteOn {
     tick: u32,
     key: u8,
     vel: u8,
 }
 
+#[derive(Debug)]
 struct NoteOff {
     tick: u32,
     key: u8,
 }
 
+#[derive(Debug)]
 struct ControlChange {
     tick: u32,
     control: u8,
     val: u8,
 }
 
+#[derive(Debug)]
 struct PitchBend {
     tick: u32,
     val: midly::PitchBend,
 }
 
+#[derive(Debug)]
 struct AfterTouch {
     tick: u32,
     key: u8,
     vel: u8,
 }
 
+#[derive(Debug)]
 struct ChAftertouch {
     tick: u32,
     vel: u8,

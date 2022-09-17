@@ -190,6 +190,31 @@ impl Receiver {
         }
     }
 
+    pub fn change_network(
+        &mut self,
+        network: Network,
+        parent_id: Option<GenId>,
+    ) -> Result<(), Error> {
+        match parent_id {
+            Some(id) => {
+                if network.get_ids()?.contains(&id) {
+                    Err(Error::Loop)
+                } else {
+                    self.network = Some(network);
+                    Ok(())
+                }
+            }
+            None => {
+                self.network = Some(network);
+                Ok(())
+            }
+        }
+    }
+
+    pub fn delete_network(&mut self) {
+        self.network = None
+    }
+
     pub fn set_value(&mut self, value: f32) -> Result<(), Error> {
         if in_range(value, self.range) {
             self.value = value;
@@ -246,16 +271,16 @@ impl Receiver {
 }
 
 pub fn set_receiver(
-    target: &mut Receiver,
+    receiver_in_target: &mut Receiver,
     target_id: GenId,
     source: &Receiver,
 ) -> Result<(), Error> {
-    if !target.compare(source) {
+    if !receiver_in_target.compare(source) {
         return Err(Error::ReceiverMisMatch);
     }
     if !source.get_ids().contains(&target_id) {
-        target.value = source.value;
-        target.network = source.network.clone();
+        receiver_in_target.value = source.value;
+        receiver_in_target.network = source.network.clone();
         Ok(())
     } else {
         Err(Error::Loop)

@@ -48,7 +48,7 @@ pub fn mul_elementwise<T: MulAssign + Copy>(v1: &mut Vec<T>, v2: &[T]) {
     }
 }
 
-#[inline(always)] //is this needed TODO
+#[inline(always)] // TODO is this needed
 pub fn cents_to_factor(cents: &mut [f32]) {
     cents.iter_mut().for_each(|x| *x = fast_pow2(*x / 1200.0))
 }
@@ -97,7 +97,7 @@ mod test {
         let start = std::time::Instant::now();
         for f in floats1 {
             unsafe {
-                read_volatile((&fast_pow2(f))as *const f32);
+                read_volatile((&fast_pow2(f)) as *const f32);
             }
         }
         let t1 = start.elapsed().as_nanos();

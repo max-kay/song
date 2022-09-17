@@ -1,0 +1,24 @@
+(
+    name: "drums",
+    effects: EmptyLeaf,
+    volume: (
+        value: 30.0,
+        range: (0.0, 5.0),
+        transform: Linear,
+        network: None,
+    ),
+    samples: {
+        (
+            value: 36,
+        ): "samples/kick.wav",
+        (
+            value: 38,
+        ): "samples/snare.wav",
+        (
+            value: 42,
+        ): "samples/hihat.wav",
+        (
+            value: 46,
+        ): "samples/hihat_half.wav",
+    },
+)

@@ -214,14 +214,14 @@ impl GeneratorSave {
         }
     }
 
-    pub fn get_mut(&mut self, key: u8) -> Result<&mut Generator, Error> {
+    fn get_mut(&mut self, key: u8) -> Result<&mut Generator, Error> {
         match self.map.get_mut(&key) {
             Some(gen) => Ok(&mut *gen),
             None => Err(Error::Existence),
         }
     }
 
-    pub fn get_mut_or_new(&mut self, key: u8) -> &mut Generator {
+    fn get_mut_or_new(&mut self, key: u8) -> &mut Generator {
         if let Entry::Vacant(e) = self.map.entry(key) {
             e.insert(Generator::Empty);
         };

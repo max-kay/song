@@ -1,17 +1,22 @@
-use std::path::Path;
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
     effects::EffectPanel,
     gens::TI,
-    globals::{GENRATOR_MANAGER, TIME_MANAGER},
-    instr::{synth::SynthBuilder, MidiInstrument, Synthesizer},
+    globals::{GENRATOR_MANAGER, RESOURCE_MANAGER, TIME_MANAGER},
+    instr::{
+        drums::{Drums, DrumsBuilder},
+        synth::SynthBuilder,
+        MidiInstrument, Synthesizer,
+    },
+    resources::SampleId,
     time,
     wave::Wave,
 };
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Pitch {
     value: u8,
 }
@@ -73,9 +78,6 @@ impl MidiTrack {
         self.effects
             .apply_to(&mut wave, TIME_MANAGER.read().unwrap().abs_start());
         wave.scale(self.gain);
-        let path = format!("out/dbg/{}_{}.wav", self.name, self.track_id);
-        let path = Path::new(&path);
-        wave.save(path);
         wave
     }
 
@@ -130,6 +132,28 @@ impl MidiTrack {
         };
 
         self.instrument = synth.wrap_midi();
+    }
+
+    pub fn add_drums(&mut self, drums: DrumsBuilder) -> Result<(), Box<dyn std::error::Error>> {
+        let mut effects = drums.effects;
+        effects.set_id(self.track_id);
+
+        let mut volume = drums.volume;
+        volume.set_id(self.track_id);
+
+        let mut samples = HashMap::<Pitch, SampleId>::new();
+        for (pitch, path) in drums.samples {
+            samples.insert(pitch, RESOURCE_MANAGER.write().unwrap().add_sample(path)?);
+        }
+
+        let drums = Drums {
+            name: drums.name,
+            effects,
+            volume,
+            samples,
+        };
+        self.instrument = MidiInstrument::Drums(Box::new(drums));
+        Ok(())
     }
 }
 

@@ -1,10 +1,11 @@
 use crate::{
     gens::{
         point_defined::Interpolation, Constant, GenId, Generator, GeneratorManager, PointDefined,
-        TI,
+        Specific, TI,
     },
-    globals::{GENRATOR_MANAGER, TIME_MANAGER},
+    globals::{GENRATOR_MANAGER, RESOURCE_MANAGER, TIME_MANAGER},
     instr::MidiInstrument,
+    resources::ResourceManager,
     time::{ClockTick, TimeManager},
     tracks::{
         midi::{self, MidiTrack},
@@ -26,6 +27,7 @@ pub struct SongBuilder {
     tracks: HashMap<u8, Track>,
     time_manager: TimeManager,
     generator_manager: GeneratorManager,
+    resource_manager: ResourceManager,
 }
 
 impl SongBuilder {
@@ -35,10 +37,11 @@ impl SongBuilder {
             tracks: HashMap::new(),
             time_manager: TimeManager::default(),
             generator_manager: GeneratorManager::new(),
+            resource_manager: ResourceManager::default(),
         }
     }
 
-    pub fn add_track_data(&mut self, track: MidiTrackBuilder) -> Result<(), Error> {
+    pub fn add_track_data(&mut self, mut track: MidiTrackBuilder) -> Result<(), Error> {
         if track.notes.is_empty() {
             // TODO think about if this is a good idea
             return Ok(());
@@ -55,31 +58,51 @@ impl SongBuilder {
                 // notes
                 decoded_track.add_notes(track.notes);
 
+                // mod_wheel
+                match track.gen_data.entry(1) {
+                    Entry::Occupied(e) => {
+                        let id = GenId::Specific {
+                            track_id,
+                            kind: Specific::ModW,
+                        };
+                        let mut mod_wheel = Generator::PointDefined(PointDefined::from_xy_pairs(
+                            e.remove(),
+                            Interpolation::Step,
+                        ));
+                        mod_wheel.set_id(id);
+                        *self.generator_manager.get_mut_or_new(id).unwrap() = mod_wheel
+                    }
+                    Entry::Vacant(_) => (),
+                }
+
                 // generators
                 for (i, points) in track.gen_data.into_iter() {
-                    let channel = Generator::PointDefined(PointDefined::from_xy_pairs(
+                    let mut channel = Generator::PointDefined(PointDefined::from_xy_pairs(
                         points,
                         Interpolation::Step,
                     ));
-                    *self
-                        .generator_manager
-                        .get_mut_or_new(GenId::put_together(Some((track_id, TI::Track)), i))
-                        .unwrap() = channel;
+                    let id = GenId::put_together(Some((track_id, TI::Track)), i);
+                    channel.set_id(id);
+                    *self.generator_manager.get_mut_or_new(id).unwrap() = channel;
                 }
 
                 // pitchbend
+                let id = GenId::Specific {
+                    track_id,
+                    kind: Specific::Pitch,
+                };
                 if !track.pitch_bend.is_empty() {
-                    let pitchbend = Generator::PointDefined(PointDefined::from_xy_pairs(
+                    let mut pitchbend = Generator::PointDefined(PointDefined::from_xy_pairs(
                         track.pitch_bend,
                         Interpolation::Step,
                     ));
-                    *self
-                        .generator_manager
-                        .get_mut_or_new(GenId::Specific {
-                            track_id,
-                            kind: crate::gens::Specific::Pitch,
-                        })
-                        .unwrap() = pitchbend;
+                    pitchbend.set_id(id);
+                    *self.generator_manager.get_mut_or_new(id).unwrap() = pitchbend;
+                } else {
+                    self.generator_manager
+                        .get_mut_or_new(id)
+                        .unwrap()
+                        .set_id(id);
                 }
 
                 // // channel after touch
@@ -87,7 +110,7 @@ impl SongBuilder {
                 //     let ch_after_touch = Generator::PointDefined(PointDefined::from_xy_pairs(
                 //         track.ch_after_touch,
                 //         Interpolation::Step,
-                //     ));
+                //     )); // set id !!!
                 //     let ch_after_touch_id = self
                 //         .generator_manager
                 //         .add_generator(ch_after_touch, id)
@@ -95,21 +118,13 @@ impl SongBuilder {
                 //     decoded_track.add_ch_after_touch(ch_after_touch_id);
                 // }
 
-                *self
-                    .generator_manager
-                    .get_mut_or_new(GenId::Specific {
-                        track_id,
-                        kind: crate::gens::Specific::ModW,
-                    })
-                    .unwrap() = PointDefined::w_val(0.0).unwrap();
-
-                *self
-                    .generator_manager
-                    .get_mut_or_new(GenId::Specific {
-                        track_id,
-                        kind: crate::gens::Specific::Vel,
-                    })
-                    .unwrap() = Constant::w_default();
+                let id = GenId::Specific {
+                    track_id,
+                    kind: Specific::Vel,
+                };
+                let mut vel = Constant::w_default();
+                vel.set_id(id);
+                *self.generator_manager.get_mut_or_new(id).unwrap() = vel;
 
                 decoded_track.set_inst_unchecked(MidiInstrument::named_empty(&track.inst_name));
 
@@ -137,18 +152,22 @@ impl From<&Song> for SongBuilder {
             tracks: song.tracks.clone(),
             time_manager: TIME_MANAGER.read().unwrap().clone(),
             generator_manager: GENRATOR_MANAGER.read().unwrap().clone(),
+            resource_manager: RESOURCE_MANAGER.read().unwrap().extract(),
         }
     }
 }
 
-impl From<SongBuilder> for Song {
-    fn from(data: SongBuilder) -> Self {
+impl TryFrom<SongBuilder> for Song {
+    type Error = Box<dyn std::error::Error>;
+    fn try_from(data: SongBuilder) -> Result<Self, Box<dyn std::error::Error>> {
         *GENRATOR_MANAGER.write().unwrap() = data.generator_manager;
         *TIME_MANAGER.write().unwrap() = data.time_manager;
-        Self {
+        *RESOURCE_MANAGER.write().unwrap() = data.resource_manager;
+        RESOURCE_MANAGER.write().unwrap().init()?;
+        Ok(Self {
             name: data.name,
             tracks: data.tracks,
-        }
+        })
     }
 }
 
@@ -174,8 +193,3 @@ pub struct MidiTrackBuilder {
     pub(super) _ch_after_touch: XYPairs<ClockTick, f32>,
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// pub enum InstrData {
-//     Empty(String),
-//     Synthesizer(SynthesierBuilder),
-// }

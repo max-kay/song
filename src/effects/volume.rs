@@ -1,12 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    network::{Receiver, Transform},
-    time::ClockTick,
-    wave::Wave,
-};
-
-const VOL_RECEIVER: Receiver = Receiver::new(1.0, (0.0, 5.0), Transform::Linear);
+use crate::{network::Receiver, receivers::VOL_RECEIVER, time::ClockTick, wave::Wave};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Volume {

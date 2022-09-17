@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     network::{self, Receiver, Transform},
+    receivers::VOL_RECEIVER,
     time::ClockTick,
     utils,
     utils::oscs::Oscillator,
@@ -13,7 +14,6 @@ use crate::{
 
 use super::PITCH_RECEIVER;
 
-const WEIGHT_RECEIVER: Receiver = Receiver::new(1.0, (0.0, 5.0), Transform::Linear);
 const MODULATION_RECEIVER: Receiver = Receiver::new(0.5, (0.0, 1.0), Transform::Linear);
 const PITCH_OFFSET_RECEIVER: Receiver = Receiver::new(0.0, (-4800.0, 4800.0), Transform::Linear);
 
@@ -35,7 +35,7 @@ impl OscPanel {
         Ok(Self {
             pitch_offsets: vec![PITCH_OFFSET_RECEIVER; oscillators.len()],
             oscillators,
-            weights: network::vec_or_none(weights, len, WEIGHT_RECEIVER)?,
+            weights: network::vec_or_none(weights, len, VOL_RECEIVER)?,
             modulation: network::vec_or_none(modulation, len, MODULATION_RECEIVER)?,
         })
     }
@@ -78,7 +78,7 @@ impl Default for OscPanel {
     fn default() -> Self {
         Self {
             oscillators: vec![Oscillator::default()],
-            weights: vec![WEIGHT_RECEIVER],
+            weights: vec![VOL_RECEIVER],
             pitch_offsets: vec![PITCH_OFFSET_RECEIVER],
             modulation: vec![MODULATION_RECEIVER],
         }
@@ -120,6 +120,6 @@ impl OscPanel {
     pub fn add_osc(&mut self, oscillator: Oscillator) {
         self.oscillators.push(oscillator);
         self.pitch_offsets.push(PITCH_RECEIVER);
-        self.weights.push(WEIGHT_RECEIVER);
+        self.weights.push(VOL_RECEIVER);
     }
 }

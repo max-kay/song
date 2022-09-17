@@ -1,7 +1,11 @@
-use std::fmt::Display;
+use std::{fmt::Display, path::PathBuf};
+
+use crate::resources::SampleId;
 
 #[derive(Debug)]
 pub enum Error {
+    Sample(Vec<(SampleId, PathBuf)>),
+    WavRead,
     Loop,
     Type,
     Existence,

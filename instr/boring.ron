@@ -4,8 +4,22 @@
     oscillators: (
         oscillators: [
             Sine,
+            ModSaw,
+            ModSquare,
         ],
         modulation: [
+            (
+                value: 0.5,
+                range: (0.0, 1.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.2,
+                range: (0.0, 1.0),
+                transform: Linear,
+                network: None,
+            ),
             (
                 value: 0.5,
                 range: (0.0, 1.0),
@@ -15,13 +29,37 @@
         ],
         weights: [
             (
-                value: 1.0,
+                value: 0.3,
+                range: (0.0, 5.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.3,
+                range: (0.0, 5.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.4,
                 range: (0.0, 5.0),
                 transform: Linear,
                 network: None,
             ),
         ],
         pitch_offsets: [
+            (
+                value: 0.0,
+                range: (-4800.0, 4800.0),
+                transform: Linear,
+                network: None,
+            ),
+            (
+                value: 0.0,
+                range: (-4800.0, 4800.0),
+                transform: Linear,
+                network: None,
+            ),
             (
                 value: 0.0,
                 range: (-4800.0, 4800.0),
@@ -52,7 +90,9 @@
         value: 1.0,
         range: (0.0, 5.0),
         transform: Linear,
-        network: None,
+        network: Some(Leaf(SpecificExtracted(
+            kind: Vel,
+        ))),
     ),
     instr_generator: (
         map: {
@@ -121,13 +161,13 @@
             0: Envelope((
                 id: Unbound,
                 attack: (
-                    value: 0.1,
+                    value: 0.02,
                     range: (0.0, 25.0),
                     transform: Linear,
                     network: None,
                 ),
                 decay: (
-                    value: 0.15,
+                    value: 0.02,
                     range: (0.0, 25.0),
                     transform: Linear,
                     network: None,
@@ -140,7 +180,7 @@
                 ),
                 half_life: None,
                 release: (
-                    value: 0.6,
+                    value: 0.01,
                     range: (0.0, 25.0),
                     transform: Linear,
                     network: None,

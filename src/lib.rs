@@ -1,7 +1,7 @@
 #![warn(missing_debug_implementations)]
 
 use io::data::SongBuilder;
-use std::{collections::HashMap, fs::File, path::Path, u8};
+use std::{collections::HashMap, fs::File, path::Path, u8, convert::TryInto};
 use tracks::{MidiTrack, Track};
 use wave::Wave;
 
@@ -12,6 +12,8 @@ pub mod globals;
 pub mod instr;
 pub mod io;
 pub mod network;
+pub mod receivers;
+pub mod resources;
 pub mod time;
 pub mod tracks;
 pub mod utils;
@@ -65,10 +67,10 @@ impl Song {
     }
 
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
-        SongBuilder::from_path(path).map(|data| data.into())
+        SongBuilder::from_path(path)?.try_into()
     }
 
     pub fn from_midi(path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
-        SongBuilder::from_midi(path).map(|data| data.into())
+        SongBuilder::from_midi(path)?.try_into()
     }
 }

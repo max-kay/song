@@ -1,6 +1,13 @@
 use crate::{globals::SAMPLE_RATE, utils};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use hound::WavSpec;
-use std::{fmt::Debug, iter::zip, path::Path};
+use itertools::interleave;
+use std::{
+    fmt::Debug,
+    iter::zip,
+    path::Path,
+    sync::{Arc, Condvar, Mutex},
+};
 
 const STD_SPEC: WavSpec = WavSpec {
     channels: 2,
@@ -49,6 +56,10 @@ impl Wave {
             right: vec.clone(),
             left: vec,
         }
+    }
+
+    pub fn from_vecs(right: Vec<f32>, left: Vec<f32>) -> Self {
+        Self { right, left }
     }
 
     pub fn resize(&mut self, new_len: usize, value: f32) {
@@ -139,6 +150,69 @@ impl Wave {
         }
         writer_i16.flush().expect("Error while saving wave!");
         writer.finalize().expect("Error while saving wave!");
+    }
+}
+
+impl Wave {
+    pub fn interleave(self) -> Vec<f32> {
+        interleave(self.right, self.left).collect()
+    }
+
+    pub fn dirty_play(&self) {
+        let mut wave = self.clone();
+        wave.rms_normalize();
+        let mut wave = wave.interleave().into_iter();
+
+        let host = cpal::default_host();
+
+        let device = host
+            .default_output_device()
+            .expect("no default output audio");
+
+        let mut supported_configs_range = device
+            .supported_output_configs()
+            .expect("error while querying configs");
+
+        let supported_config = supported_configs_range
+            .next()
+            .expect("no supported config?!")
+            .with_max_sample_rate();
+
+        let err_fn = |err: cpal::StreamError| {
+            eprintln!("an error occurred on the output audio stream: {}", err)
+        };
+
+        let mine = Arc::new((Mutex::new(false), Condvar::new()));
+        let in_stream = Arc::clone(&mine);
+
+        let stream = device
+            .build_output_stream(
+                &supported_config.into(),
+                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    for d in data {
+                        match wave.next() {
+                            Some(s) => *d = s,
+                            None => {
+                                *d = 0.0;
+                                let (lock, cvar) = &*in_stream;
+                                let mut started = lock.lock().unwrap();
+                                *started = true;
+                                // We notify the condvar that the value has changed.
+                                cvar.notify_one();
+                            }
+                        }
+                    }
+                },
+                err_fn,
+            )
+            .unwrap();
+
+        stream.play().unwrap();
+        let (lock, cvar) = &*mine;
+        let mut started = lock.lock().unwrap();
+        while !*started {
+            started = cvar.wait(started).unwrap();
+        }
     }
 }
 

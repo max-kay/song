@@ -2,7 +2,8 @@ use crate::{
     effects::EffectPanel,
     gens::{Envelope, GenId, GenSaveBuilder, Lfo, Specific},
     globals::{GENRATOR_MANAGER, TIME_MANAGER},
-    network::{Receiver, Transform},
+    network::{Network, Receiver, Transform},
+    receivers::VOL_RECEIVER,
     time::ClockTick,
     tracks::midi,
     wave::Wave,
@@ -17,7 +18,6 @@ pub use osc_panel::OscPanel;
 use super::MidiInstrument;
 
 const PITCH_RECEIVER: Receiver = Receiver::new(0.0, (-4800.0, 4800.0), Transform::Linear);
-const VOL_CTRL_RECEIVER: Receiver = Receiver::new(1.0, (0.0, 5.0), Transform::Linear);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Synthesizer {
@@ -60,7 +60,9 @@ impl Synthesizer {
         // TODO
         let cent_offsets = self.pitch_receiver.get_vec(note_on, envelope.len());
 
-        let mut wave = self.oscillators.play(freq, &cent_offsets, note_on, envelope.len());
+        let mut wave = self
+            .oscillators
+            .play(freq, &cent_offsets, note_on, envelope.len());
         wave.scale_by_vec(self.volume_receiver.get_vec(note_on, envelope.len()));
         wave.scale_by_vec(envelope);
         self.effects.apply_to(&mut wave, note_on);
@@ -136,10 +138,9 @@ impl Synthesizer {
 
 impl Synthesizer {
     pub fn save_to(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
-        let data: SynthBuilder = self.extract();
+        let data = self.extract();
         let file = File::create(path)?;
         ron::ser::to_writer_pretty(file, &data, Default::default())?;
-        // serde_json::to_writer_pretty(file, &data)?;
         Ok(())
     }
 }
@@ -173,6 +174,27 @@ impl SynthBuilder {
         let lfo_2 = GenId::InstrExtracted {
             key: instr_generator.insert_gen(Lfo::w_default()).unwrap(),
         };
+
+        let mut vol_receiver = VOL_RECEIVER;
+        vol_receiver
+            .change_network(
+                Network::Leaf(GenId::SpecificExtracted {
+                    kind: Specific::Vel,
+                }),
+                None,
+            )
+            .unwrap();
+
+        let mut pitch_receiver = PITCH_RECEIVER;
+        pitch_receiver
+            .change_network(
+                Network::Leaf(GenId::SpecificExtracted {
+                    kind: Specific::Pitch,
+                }),
+                None,
+            )
+            .unwrap();
+
         Self {
             name: name.to_string(),
             effects: EffectPanel::EmptyLeaf,
@@ -182,7 +204,7 @@ impl SynthBuilder {
             lfo_1,
             lfo_2,
             pitch_receiver: PITCH_RECEIVER,
-            volume_receiver: VOL_CTRL_RECEIVER,
+            volume_receiver: vol_receiver,
             instr_generator,
         }
     }
