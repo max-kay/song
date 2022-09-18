@@ -1,7 +1,8 @@
 #![warn(missing_debug_implementations)]
 
+use cpal::Stream;
 use io::data::SongBuilder;
-use std::{collections::HashMap, fs::File, path::Path, u8, convert::TryInto};
+use std::{collections::HashMap, convert::TryInto, fs::File, path::Path, u8};
 use tracks::{MidiTrack, Track};
 use wave::Wave;
 
@@ -74,3 +75,15 @@ impl Song {
         SongBuilder::from_midi(path)?.try_into()
     }
 }
+
+// pub struct App {
+//     song: Song,
+//     input_stream: Option<Stream>,
+//     output_stream: Option<Stream>,
+// }
+
+// impl App {
+//     pub fn new(song: Song) -> Self {
+//         let host = cpal::
+//     }
+// }

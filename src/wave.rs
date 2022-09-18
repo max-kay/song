@@ -9,13 +9,6 @@ use std::{
     sync::{Arc, Condvar, Mutex},
 };
 
-const STD_SPEC: WavSpec = WavSpec {
-    channels: 2,
-    sample_rate: SAMPLE_RATE as u32,
-    bits_per_sample: 16,
-    sample_format: hound::SampleFormat::Int,
-};
-
 #[derive(Debug, Clone)]
 pub struct Wave {
     right: Vec<f32>,
@@ -137,8 +130,15 @@ impl Wave {
     pub fn save(&self, path: impl AsRef<Path>) {
         let mut wave = self.clone();
         wave.rms_normalize();
-        let mut writer =
-            hound::WavWriter::create(path, STD_SPEC).expect("Error while saving wave!");
+
+        let spec = WavSpec {
+            channels: 2,
+            sample_rate: SAMPLE_RATE as u32,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+
+        let mut writer = hound::WavWriter::create(path, spec).expect("Error while saving wave!");
         let mut writer_i16 = writer.get_i16_writer(wave.len() as u32 * 2);
         let right = wave.right.iter().map(|x| (x * i16::MAX as f32) as i16);
         let left = wave.left.iter().map(|x| (x * i16::MAX as f32) as i16);

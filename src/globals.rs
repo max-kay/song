@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 
 use crate::{gens::GeneratorManager, resources::ResourceManager, time::TimeManager};
 
-pub const SAMPLE_RATE: usize = 44100;
+pub static SAMPLE_RATE: usize = 44100;
 
 pub static TIME_MANAGER: Lazy<RwLock<TimeManager>> = Lazy::new(RwLock::default);
 

@@ -1,5 +1,5 @@
 use self::data::{MidiTrackBuilder, SongBuilder};
-use crate::{time::ClockTick, tracks::midi, utils::XYPairs, wave::Wave, globals::SAMPLE_RATE};
+use crate::{globals::SAMPLE_RATE, time::ClockTick, tracks::midi, utils::XYPairs, wave::Wave};
 use hound::{SampleFormat, WavSpec};
 use itertools::Itertools;
 use midly::{Format, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
@@ -21,59 +21,211 @@ pub fn read_wav(path: impl AsRef<Path>) -> Result<Wave, Box<dyn std::error::Erro
         sample_format,
     } = reader.spec();
 
-    if channels != 2 {
-        Err(crate::Error::WavRead)?
-    };
-
     if sample_rate as usize != SAMPLE_RATE {
         Err(crate::Error::WavRead)?
     };
-
-    match sample_format {
-        SampleFormat::Float => match bits_per_sample {
-            0..=32 => {
-                todo!()
+    match channels {
+        1 => {
+            match sample_format {
+                SampleFormat::Float => match bits_per_sample {
+                    32 => {
+                        let mut err = false;
+                        let vec: Vec<f32> = reader
+                            .into_samples::<f32>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .collect_vec();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vec(vec))
+                    }
+                    _ => Err(crate::Error::WavRead)?, // TODO?
+                },
+                SampleFormat::Int => match bits_per_sample {
+                    8 => {
+                        let mut err = false;
+                        let vec: Vec<f32> = reader
+                            .into_samples::<i8>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s as f32 / i8::MAX as f32),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .collect_vec();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vec(vec))
+                    }
+                    16 => {
+                        let mut err = false;
+                        let vec: Vec<f32> = reader
+                            .into_samples::<i16>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s as f32 / i16::MAX as f32),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .collect_vec();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vec(vec))
+                    }
+                    32 => {
+                        let mut err = false;
+                        let vec: Vec<f32> = reader
+                            .into_samples::<i8>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s as f32 / i8::MAX as f32),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .collect_vec();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vec(vec))
+                    }
+                    _ => Err(crate::Error::WavRead)?, // TODO?
+                },
             }
-            33..=64 => {
-                todo!()
+        }
+        2 => {
+            match sample_format {
+                SampleFormat::Float => match bits_per_sample {
+                    32 => {
+                        let mut err = false;
+                        let (right, left): (Vec<f32>, Vec<f32>) = reader
+                            .into_samples::<f32>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .chunks(2)
+                            .into_iter()
+                            .map(|mut chunk| {
+                                (
+                                    chunk.next().unwrap(),
+                                    match chunk.next() {
+                                        Some(s) => s,
+                                        None => 0.0,
+                                    },
+                                )
+                            })
+                            .unzip();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vecs(right, left))
+                    }
+                    _ => Err(crate::Error::WavRead)?, // TODO?
+                },
+                SampleFormat::Int => match bits_per_sample {
+                    8 => {
+                        let mut err = false;
+                        let (right, left): (Vec<f32>, Vec<f32>) = reader
+                            .into_samples::<i8>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .chunks(2)
+                            .into_iter()
+                            .map(|mut chunk| {
+                                (
+                                    chunk.next().unwrap() as f32 / i8::MAX as f32,
+                                    match chunk.next() {
+                                        Some(s) => s as f32 / i8::MAX as f32,
+                                        None => 0.0,
+                                    },
+                                )
+                            })
+                            .unzip();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vecs(right, left))
+                    }
+                    16 => {
+                        let mut err = false;
+                        let (right, left): (Vec<f32>, Vec<f32>) = reader
+                            .into_samples::<i16>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .chunks(2)
+                            .into_iter()
+                            .map(|mut chunk| {
+                                (
+                                    chunk.next().unwrap() as f32 / i16::MAX as f32,
+                                    match chunk.next() {
+                                        Some(s) => s as f32 / i16::MAX as f32,
+                                        None => 0.0,
+                                    },
+                                )
+                            })
+                            .unzip();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vecs(right, left))
+                    }
+                    32 => {
+                        let mut err = false;
+                        let (right, left): (Vec<f32>, Vec<f32>) = reader
+                            .into_samples::<i32>()
+                            .filter_map(|x| match x {
+                                Ok(s) => Some(s),
+                                Err(_) => {
+                                    err = true;
+                                    None
+                                }
+                            })
+                            .chunks(2)
+                            .into_iter()
+                            .map(|mut chunk| {
+                                (
+                                    chunk.next().unwrap() as f32 / i32::MAX as f32,
+                                    match chunk.next() {
+                                        Some(s) => s as f32 / i32::MAX as f32,
+                                        None => 0.0,
+                                    },
+                                )
+                            })
+                            .unzip();
+                        if err {
+                            Err(crate::Error::WavRead)?
+                        }
+                        Ok(Wave::from_vecs(right, left))
+                    }
+                    _ => Err(crate::Error::WavRead)?,
+                },
             }
-            _ => Err(crate::Error::WavRead)?,
-        },
-        SampleFormat::Int => match bits_per_sample {
-            0..=8 => {
-                todo!()
-            }
-            9..=16 => {
-                let mut right: Vec<i16> = Vec::with_capacity(reader.len() as usize / 2);
-                let mut left: Vec<i16> = Vec::with_capacity(reader.len() as usize / 2);
-                for mut chunk in &reader
-                    .into_samples::<i16>()
-                    .map(|s| s.expect("error in reading wav"))
-                    .collect::<Vec<i16>>()
-                    .into_iter()
-                    .chunks(2)
-                {
-                    left.push(chunk.next().unwrap());
-                    right.push(chunk.next().unwrap());
-                }
-                Ok(Wave::from_vecs(
-                    right
-                        .into_iter()
-                        .map(|x| x as f32 / i16::MAX as f32)
-                        .collect(),
-                    left.into_iter()
-                        .map(|x| x as f32 / i16::MAX as f32)
-                        .collect(),
-                ))
-            }
-            17..=32 => {
-                todo!()
-            }
-            33..=64 => {
-                todo!()
-            }
-            _ => Err(crate::Error::WavRead)?,
-        },
+        }
+        _ => todo!(),
     }
 }
 

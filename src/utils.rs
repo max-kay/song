@@ -73,8 +73,8 @@ pub fn fast_pow2(x: f32) -> f32 {
 #[cfg(test)]
 mod test {
     use std::ptr::read_volatile;
-
     use super::fast_pow2;
+
     #[test]
     fn pow2_test() {
         let floats = (0..100).map(|x| -2.0 + x as f32 / 25.0);
